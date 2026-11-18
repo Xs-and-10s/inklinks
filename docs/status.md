@@ -49,9 +49,22 @@ It passes the compiler's own eight Ex 3 tests, ported to
 
 ## Inquests
 
-`Inklinks.Inquest` runs flow D: the box first, then Inquest mode, flips
-fetched one at a time, a fork spent only when taken. Decided while
-building it (easy to change):
+`Inklinks.Inquest` runs flow D: the box first, then Inquest mode, forks
+fetched one Link at a time, a fork spent only when taken.
+
+Decided with Mark (18 Nov):
+
+- **Taking a fork ends Inquest mode**: it moves on, and the next Nib asks
+  first again.
+- **Several forks per offered Link**, opened as one group in the Link's
+  place, in the Inker's order; each fork its own button. **One group open
+  at a time**: opening (or tapping) another Link closes it.
+- **Forks asked for from a later Nib** (`inquest.from`): shown under "Back
+  when you chose …", taken by going back to that visit.
+- **Offered Links**, not canon Links; event data says `link`.
+- **No timeout** for choosing in Inquest mode.
+
+Decided while building it (easy to change):
 
 - **No Inquests left:** the box still opens (the Inker still hears what
   the Linker wanted), and the answer is "Noted"; Inquest mode never opens.
@@ -66,6 +79,10 @@ building it (easy to change):
 - **A Link with no fork says so in its own label** ("no other path here")
   once looked at, rather than in the live region, which a quick Tab across
   several Links could leave stale.
+- **Going back goes to the latest visit** of the earlier passage.
+- **The open group's first fork takes the place of the Link's own button**,
+  so keyboard focus stays put when the group opens; Tab walks the group,
+  and leaving it closes it.
 
 ## How to resume
 

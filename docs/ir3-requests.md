@@ -2,9 +2,10 @@
 
 IR version 2 is frozen. Everything here is a request for version 3, found by
 building the platform against IR 2 and a hand-written Inquest fixture,
-`priv/inklinks/ex4-littlejon-thornbury.json` (Littlejon's ch2, ch2_alt and
-ch3, the widow at the millpond). Every field the fixture uses that IR 2
-lacks is listed here.
+`priv/inklinks/ex4-littlejon-thornbury.json`: Littlejon from ch2 (the widow
+at the millpond) to the opening of ch4, with two forks for one Link, a fork
+asked for from a later chapter, and ch3's own fork. Every field the fixture
+uses that IR 2 lacks is listed here.
 
 ## 1. Inquests: a fork is a Link with an `inquest` field
 
@@ -15,16 +16,23 @@ lacks is listed here.
   "label": "Free her, unseen",
   "target": "ch2_alt",
   "kind": "go",
-  "inquest": { "stands_in_for": "obey_at_thornbury", "by": "inker" },
+  "inquest": { "stands_in_for": "obey_at_thornbury", "by": "inker", "from": ["ch3"] },
   "...": "every other Link field, as in IR 2"
 }
 ```
 
 | Field | Meaning |
 |---|---|
-| `inquest` | Present only on a fork. A Link without it is canon (canon is implicit, as decided 15 Nov) |
-| `inquest.stands_in_for` | The id of the canon Link this fork stands in for. **Always written out**, even when the source leaves it implicit ("the canon Link just above"): the compiler resolves the default, so a runtime never infers it from position |
+| `inquest` | Present only on a fork. A Link without it is an offered Link (canon is implicit, as decided 15 Nov) |
+| `inquest.stands_in_for` | The id of the offered Link this fork stands in for, in the same passage. **Always written out**, even when the source leaves it implicit ("the Link just above"): the compiler resolves the default, so a runtime never infers it from position |
 | `inquest.by` | `inker` for a fork the Inker wrote; `monkeypaw` or `storyteller` for one filled in later, with `rejoin` (where it rejoins canon) and the pending-slot fields that `~ inquest by monkeypaw ~ rejoin ch5` needs |
+| `inquest.from` | Optional. Later passages from which this fork may also be asked for (`~ inquest from ch3`). The fork stays in its own passage, beside the Link it stands in for; `from` only says where else it can be asked for |
+
+**Several forks for one offered Link** are allowed (decided 18 Nov): two or
+more Links with `inquest.stands_in_for` naming the same Link. **Their order
+is the order they are written in the passage**, and the IR keeps it (the
+`body` is already in source order). The platform shows them as one group,
+in that order, opened in the offered Link's place.
 
 Why a field and not `kind: "inquest"` (reserved in IR 2): being a fork is
 orthogonal to what a Link does. A fork can be a plain move (`go`), or an act
@@ -33,14 +41,14 @@ orthogonal to what a Link does. A fork can be a plain move (`go`), or an act
 
 What the platform does with `stands_in_for`:
 
-1. **The flip.** In Inquest mode, a canon Link turns over to the fork that
-   stands in for it, in the canon Link's place on the page.
-2. **The box.** A canon Link no fork stands in for asks "what did you want
-   instead" when chosen in Inquest mode.
+1. **The flip.** In Inquest mode, an offered Link opens into the group of
+   forks that stand in for it, in its place on the page.
+2. **The box.** An offered Link no fork stands in for asks "what did you
+   want instead" when chosen in Inquest mode.
 3. **The record.** `fork_taken` and `fork_declined` name the pair:
    "took `free_the_widow` instead of `obey_at_thornbury`".
-4. **Availability.** A fork is offered only while its canon Link is: if the
-   canon Link's `when` fails, the fork is hidden too. A fork may still carry
+4. **Availability.** A fork is offered only while its offered Link is: if
+   that Link's `when` fails, the fork is hidden too. A fork may still carry
    its own `when` (and `hidden_until`), which must also hold.
 
 The budget is IR 2's resource declaration, unchanged:
@@ -52,16 +60,23 @@ The budget is IR 2's resource declaration, unchanged:
 The platform turns Inquests on only when that is declared **and** the
 Inklink has at least one fork (opt-in by the Inker, as decided).
 `inkjot check` should refuse a fork in `mode: cohort` (decided: solo only),
-and a fork whose `stands_in_for` names no canon Link in the same passage.
+and a fork whose `stands_in_for` names no offered Link in the same passage.
 
-### Open questions for IR 3
+### Asking from a later passage
 
-- **Several forks for one canon Link?** The platform takes the first. If
-  allowed, flipping needs an order (cycle on each look?), and the IR should
-  say it (`inquest.order`, or the order written).
-- **May a fork stand in for a Link in another passage** (`~ inquest from
-  ch3`, later)? Then `stands_in_for` needs a passage as well as an id, and
-  the platform a way back.
+`from` lists passage names. `inkjot check` should refuse a name that is not
+a passage, and could warn when no path leads from the fork's passage to the
+`from` passage. At runtime the platform finds, for the Nib the Linker is at,
+the latest visit to each passage whose forks name it in `from`, shows that
+visit's offered Links ("Back when you chose …"), and, if a fork is taken,
+replays the reading to that visit and takes it there. A fork without `from`
+can be asked for only from its own passage.
+
+### Open question
+
+- **How far back.** `from` names passages, so the Inker decides. Should a
+  fork asked for from a passage the reading has visited twice go back to
+  the latest visit (what the platform does) or let the Linker pick?
 
 ## 2. Link ids that survive revisions
 
@@ -75,7 +90,7 @@ would point at the wrong Link. The fixture uses the Inker's own ids
   position (`ch2->ch3`), as decided 15 Nov, with a suffix only when two
   Links share both;
 - optionally `"id_from": "inker" | "target"`, so tools can warn when an
-  Inquest-enabled Inklink has forks or canon Links without Inker ids
+  Inquest-enabled Inklink has forks or offered Links without Inker ids
   (`inkjot check` should warn, as decided).
 
 ## 3. Styled runs instead of asterisks

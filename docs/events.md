@@ -93,8 +93,15 @@ it: a reader can never take a Link the IR does not offer.
 
 ### Built (milestone 3): Inquests, flow D
 
-Every Inquest event carries `nib`, the Nib it happened on. Free text is
-trimmed and capped at 2,000 characters; an empty answer is a skip.
+Every Inquest event carries `nib`, the Nib the Linker is at. `link` is the
+offered Link a fork stands in for. Free text is trimmed and capped at 2,000
+characters; an empty answer is a skip.
+
+**Forks asked for from a later Nib.** When the fork stands in for a Link
+at an earlier passage (`~ inquest from ch3`), its events also carry `at`,
+the earlier passage, and `back_to`, the `stream_version` of that visit's
+`nib_shown`. So a record reads: asked at `ch3`, back to `ch2` (version 2),
+took `free_the_widow` instead of `obey_at_thornbury`.
 
 | Type | When | `data` (besides `nib`) |
 |---|---|---|
@@ -102,25 +109,32 @@ trimmed and capped at 2,000 characters; an empty answer is a skip.
 | `inquest_submitted` | They answer "What would you change here?" | `text` |
 | `inquest_skipped` | They skip it (Skip, Escape, or an empty answer) | |
 | `inquest_turned_down` | Nothing to look at: the request is noted, nothing spent | `reason`: `no_forks`, or `none_left` when the budget is spent |
-| `inquest_mode_entered` | The Nib hides at least one fork: Inquest mode | `remaining` |
-| `fork_looked` | A canon Link is flipped to its fork for the first time in this Inquest mode (looking again is not recorded) | `canon`, `fork`, `label` |
-| `fork_taken` | The Linker takes a fork they looked at. **This, and only this, spends an Inquest** | `canon`, `fork`, `label` |
-| `fork_declined` | A fork looked at, left untaken when Inquest mode ends | `canon`, `fork`, `by`: `left`, `wanted_instead`, `took_canon`, or `took_another_fork` |
-| `wanted_instead_opened` | In Inquest mode, they choose a canon Link with no fork | `canon` |
-| `wanted_instead_submitted` | They say what they wanted instead | `canon`, `text` |
-| `wanted_instead_skipped` | They skip that | `canon` |
-| `inquest_mode_left` | Inquest mode ends without a fork taken | `reason`: `left` (button or Escape), `wanted_instead`, `took_canon` |
+| `inquest_mode_entered` | Forks are hidden here, or asked for from here: Inquest mode | `remaining` |
+| `fork_looked` | A fork is shown for the first time in this Inquest mode: opening a Link shows all its forks, so one event per fork (showing them again is not recorded) | `link`, `fork`, `label`, and `at`, `back_to` when earlier |
+| `fork_taken` | The Linker takes a fork they were shown. **This, and only this, spends an Inquest** | `link`, `fork`, `label`, and `at`, `back_to` when earlier |
+| `fork_declined` | A fork shown, left untaken when Inquest mode ends | `link`, `fork`, `by`: `left`, `wanted_instead`, `took_link`, or `took_another_fork`; and `at`, `back_to` when earlier |
+| `wanted_instead_opened` | In Inquest mode, they choose an offered Link with no fork | `link`, and `at`, `back_to` when earlier |
+| `wanted_instead_submitted` | They say what they wanted instead | `link`, `text`, and `at`, `back_to` when earlier |
+| `wanted_instead_skipped` | They skip that | `link`, and `at`, `back_to` when earlier |
+| `inquest_mode_left` | Inquest mode ends without a fork taken | `reason`: `left` (button or Escape), `wanted_instead`, `took_link` |
 
 A `fork_taken` is followed, in the same append, by any `fork_declined`s and
-then `nib_shown` for where the fork led. Taking a fork ends Inquest mode by
-moving on, so no `inquest_mode_left` follows it.
+then `nib_shown` for where the fork led. Taking a fork moves on, which ends
+Inquest mode, so no `inquest_mode_left` follows it.
+
+**Going back.** A `fork_taken` with `back_to` is replayed from the engine
+state at that earlier `nib_shown`, not the current one: the world goes back
+to that visit (the widow is in the water again), then the fork is taken.
+Inquests already spent stay spent; they are the Linker's, not the story's.
 
 **Inquests left** is never stored: it is `reading_started.inquests` less
 the stream's `fork_taken` count. A property test runs random sequences of
-everything a Linker can do (and forged requests) and checks that the
-count falls by exactly one on each `fork_taken` and at no other time, that
-every `fork_taken` follows a `fork_looked` of the same fork since the last
-`nib_shown`, and that no fork ever appears in a `nib_shown`'s `links`.
+everything a Linker can do, at the current Nib and at earlier ones, forged
+requests included, and checks that the count falls by exactly one on each
+`fork_taken` and at no other time; that every `fork_taken` follows a
+`fork_looked` of the same fork since the last `nib_shown`; that no fork ever
+appears in a `nib_shown`'s `links`; and that the log rebuilds the same
+reading.
 
 **Where flow D stands** (box open, Inquest mode, asking what they wanted)
 is projected from these events since the last `nib_shown`, so a reload or

@@ -61,11 +61,30 @@ IR 2 reserves `kind: "inquest"` for Links. A fork can be a move or an act,
 so being a fork should be a field (`"inquest": {"stands_in_for": …}`), not
 a kind. See `ir3-requests.md` §1.
 
-## 6. Littlejon has no Nib with a fork *and* a canon Link without one
+## 6. Ex 4 and the fixture
 
-Flow D has a branch for a canon Link with no fork, chosen in Inquest mode
-("what did you want instead"). Every Inquest Nib in Ex 4 has exactly one
-canon Link and its fork, so that branch never comes up in the real text.
-The fixture adds a second canon Link to ch2, `shut_your_eyes` ("Shut your
-eyes", to ch3), marked here as fixture-only. Worth deciding whether Ex 4
-should have such a Nib, so the branch is exercised by the example itself.
+Flow D has a branch for an offered Link with no fork, chosen in Inquest
+mode ("what did you want instead"). Every Inquest Nib in Ex 4 has exactly
+one offered Link and its fork, so that branch never comes up in the real
+text. The fixture adds to ch2, marked fixture-only:
+
+- `watch_what_unfolds`, "Make yourself watch" (to ch3): an offered Link with
+  no fork. In the fixture it is the same choice as "Stay at Eyrad's side"
+  under another name; in Ex 4 it could set something ch3 reads, so it is
+  not empty.
+- `speak_in_her_ear`, "Speak in Sister Agathe's ear" (to a new passage,
+  `ch2_voice`): a second fork for `obey_at_thornbury`. Ixë does not free
+  the widow; he speaks into the Sister's ear in the Light's old tongue
+  ("She is mine. Give her back."), she stops the trial herself and claims
+  the Light spoke to her, and Eyrad sees he has used its voice. It sets
+  `widow_freed`, and fits ch4's line about "a voice in the Sister's ear".
+
+And `free_the_widow` is marked `from ch3`, so it can also be asked for from
+ch3, which is not in the draft.
+
+## 7. Vocabulary: offered Links (decided 18 Nov)
+
+The Links a Nib shows are **offered Links**; a **fork** is hidden behind
+one. "Canon" stays a story word, for the Inker's main line. The platform's
+event data says `link` where it said `canon`. Worth using the same words in
+run.md and the Inkjot docs.
