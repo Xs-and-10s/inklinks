@@ -16,9 +16,9 @@ the real engine.
 
 | Milestone | Branch | What | State |
 |---|---|---|---|
-| 1 | `m1-skeleton` | Phoenix without LiveView or a JS build; the event log and its append-only triggers; the reader id; the `Inklinks.Engine` behaviour; the catalog and library page | done |
-| 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | next |
-| 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | |
+| 1 | `m1-skeleton` | Phoenix without LiveView or a JS build; the event log and its append-only triggers; the reader id; the `Inklinks.Engine` behaviour; the catalog and library page | done, #1 |
+| 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | done |
+| 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | next |
 | 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending | |
 | 5 | `m5-handoff` | `events.md`, `engine-calls.md`, `ir3-requests.md` finished for the compiler chat | |
 
@@ -36,6 +36,16 @@ the real engine.
   the ending; `epilogue` a coda after one.
 - IR 2 passes `*emphasis*` through as text; the stub lowers it to styled
   runs, the shape requested for IR 3.
+
+## The stub engine
+
+`Inklinks.Engine.Stub` plays solo stories: Nibs, `go` Links with
+`~ when` and `hidden until`, `[if]` / `[unless]` / `[else]` / `[end]` /
+`[once]` / `[beat]`, `next:`, facts (`set`), lists (`add`, `strike`,
+`remove`), `move`, `{value}` and `{list}` inserts, `aka`. Anything else
+it names and refuses at load; the library shows why (Ex 1 and Ex 2).
+It passes the compiler's own eight Ex 3 tests, ported to
+`test/inklinks/engine/stub_ex3_test.exs`.
 
 ## How to resume
 

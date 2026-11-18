@@ -37,3 +37,20 @@ asterisks, so a runtime has to parse Inkjot to render them. See
 **Meanwhile:** the stub engine lowers asterisks itself, following the v0.6
 rules (underscores literal, an unmatched `*` literal, `\*` an asterisk,
 never across a paragraph).
+
+## 3. `shown_as` in speech
+
+Ex 3 declares `npc widow: "Marge" ~ shown as "the Surviving Authority"`.
+The interpreter's speech lines use the label, so she speaks as "Marge"; the
+`shown_as` text is never shown. Which should a speech line use: the label,
+`shown_as`, or `shown_as` until something reveals the name?
+
+**Meanwhile:** the stub matches the interpreter and uses the label.
+
+## 4. The stub matches the interpreter, so test them together
+
+The stub copies the interpreter's xorshift64 generator and its `aka`
+shuffle, so the same seed names Leo the same way in both. When the bridge
+exists, run the platform's Ex 3 scenarios (`test/inklinks/engine/`)
+against the Rust engine as well: they are the compiler's own Ex 3 tests,
+and the stub passes them all.
