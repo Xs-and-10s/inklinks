@@ -301,6 +301,111 @@
   }
 }
 
+@layer components {
+  /* Inquests. The button sits under the Links; its count is quiet. */
+  article#nib p[data-inquest] {
+    align-items: baseline;
+    display: flex;
+    gap: var(--space-s);
+    margin-block-start: var(--space-m);
+
+    & small {
+      color: var(--ink-muted);
+    }
+  }
+
+  /* Inquest mode: a note above the Links, and the Links drawn dashed, as
+     things that may turn over. */
+  article#nib[data-mode="inquest"] {
+    & p[role="note"] {
+      background: var(--paper-raised);
+      border: 1px dashed var(--accent);
+      border-radius: var(--radius);
+      font-size: var(--step--1);
+      margin-block-start: var(--space-l);
+      padding: var(--space-s) var(--space-m);
+
+      & button {
+        margin-inline-start: var(--space-s);
+      }
+    }
+
+    & nav[aria-label="Links"] li {
+      view-transition-name: match-element;
+
+      & > button {
+        border-style: dashed;
+      }
+
+      &[data-flipped] > button {
+        background: color-mix(in oklch, var(--accent) 12%, var(--paper-raised));
+        border-color: var(--accent);
+        border-style: solid;
+      }
+
+      & small {
+        color: var(--ink-muted);
+        display: block;
+        font-family: var(--font-ui);
+        font-size: var(--step--1);
+      }
+    }
+  }
+
+  /* The live region: read aloud, and shown, under the Nib. */
+  #announce {
+    color: var(--ink-muted);
+    font-size: var(--step--1);
+    min-block-size: 1lh;
+  }
+
+  /* The Inquest boxes. Modal: the page behind is inert. */
+  dialog#box {
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    color: var(--ink);
+    max-inline-size: min(34em, 92vw);
+    padding: var(--space-l);
+
+    &::backdrop {
+      background: oklch(20% 0.01 260 / 0.45);
+    }
+
+    & form > * + * {
+      margin-block-start: var(--space-m);
+    }
+
+    & h2 {
+      font-size: var(--step-1);
+    }
+
+    & textarea {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      color: var(--ink);
+      inline-size: 100%;
+      padding: var(--space-s);
+    }
+
+    & p:last-child {
+      display: flex;
+      gap: var(--space-s);
+    }
+  }
+}
+
+/*
+  A flip is a View Transition too: the Link's box cross-fades from canon to
+  fork (each Link names itself with match-element; where that is not
+  supported, the Nib as a whole cross-fades, which looks the same).
+*/
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 160ms;
+}
+
 /*
   Moving from one Nib to the next is a View Transition, where the browser has
   them: Datastar wraps the patch in document.startViewTransition, and the
