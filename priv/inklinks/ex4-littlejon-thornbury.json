@@ -40,6 +40,11 @@
       "declare": "state",
       "id": "widow_freed",
       "value": false
+    },
+    {
+      "declare": "state",
+      "id": "book_kept",
+      "value": true
     }
   ],
   "acts": {},
@@ -387,13 +392,40 @@
           "overrides": [],
           "inquest": {
             "stands_in_for": "obey_at_thornbury",
+            "by": "inker",
+            "from": [
+              "ch3"
+            ]
+          }
+        },
+        {
+          "type": "link",
+          "id": "speak_in_her_ear",
+          "label": "Speak in Sister Agathe’s ear",
+          "target": "ch2_voice",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": [],
+          "inquest": {
+            "stands_in_for": "obey_at_thornbury",
             "by": "inker"
           }
         },
         {
           "type": "link",
-          "id": "shut_your_eyes",
-          "label": "Shut your eyes",
+          "id": "watch_what_unfolds",
+          "label": "Make yourself watch",
           "target": "ch3",
           "kind": "go",
           "act": null,
@@ -584,10 +616,115 @@
       ]
     },
     {
+      "name": "ch2_voice",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He did not take his sleeve out of Eyrad’s hand. He only leaned, the way a man leans toward a sound he is not sure he heard, and then Eyrad’s fingers were closed on nothing."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Sister Agathe stood at the end of the beam with her hand still raised. Ixë came up behind her, close enough to count the pins in her wimple, and spoke into her ear in the old tongue of the Light, the one the hymn was written in."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“She is mine,” he said. “Give her back.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The hand came down, slowly. Nobody in the crowd had heard a thing, but they saw the Sister’s face, and they saw it go the colour of the pond."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“The water has spoken,” said Sister Agathe, much too loudly. “She is innocent. Bring her in.” They swung the beam to the bank and cut Goody Ennis loose, and she lay on the grass coughing and alive, and the crowd went home to its dinner telling one another that the Sister had heard the Light."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad found him at the edge of the town, sitting on a milestone in the full sun."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“You spoke in its voice,” Eyrad said. He did not sound angry. He sounded like a man who has found a crack in a wall he has been leaning on."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“I didn’t say whose she was,” said Ixë."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad was quiet for a long time. “She’ll write to the Archprior,” he said at last. “Not that she let a witch go. That the Light spoke to her, in Thornbury, on the road south.” He stood, and brushed off his cloak. “Come on. I want to be a long way from here before that letter is.”"
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "south_to_the_fens",
+          "label": "Go on to the fens",
+          "target": "ch3",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [
+            {
+              "do": "set",
+              "target": "widow_freed",
+              "value": true,
+              "when": null
+            }
+          ],
+          "ends_turn": false,
+          "overrides": []
+        }
+      ]
+    },
+    {
       "name": "ch3",
-      "tags": [
-        "finale"
-      ],
+      "tags": [],
       "margin": false,
       "header": [],
       "body": [
@@ -703,6 +840,369 @@
           "paragraphs": [
             [
               "He opened his mouth to say *I don’t remember*, and found that was not true."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "A garden. A wall with roses on it, white ones. A girl of fifteen or so, in a green dress, with a circlet in her hair so thin it was hardly more than a wire, laughing at something, and then not laughing. The taste of it. Centuries of rabbits and fever-sick beggars and once, God help him, a sheep, and none of it ever like that, never again. He took his face out of Mother Maud’s hand."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“A girl,” he said. “In a garden. I was new. I didn’t know what I was doing.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“No,” said Mother Maud, “you didn’t. But you chose very well.” She sat back on her stool. “Do you know why you walk unseen in the sun, Daywalker, when your brothers burn? I’ll tell you, since the boy hasn’t. A vampire is made by his First Blood. Drink a drunkard first and you’ll be a drunkard’s devil all your days. Drink a soldier and you’ll be a soldier. And if you drink the old blood, the blood of the House of Aur that has worn the crown of this country for a thousand years, the Corruption can’t finish what it started. It gets halfway and stops. Half in the dark and half in the light. The sun won’t burn what the old blood half-saved. It only won’t look at it.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Ixë stood very still."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Every other blood makes you sick,” said Mother Maud, “because every other blood is the wrong blood. There’s only one kind that would feed you properly, and you’ve not tasted it since that garden.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He turned, slowly, to Eyrad."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad met the place where his eyes would be. “You know now what I meant by *useful,*” he said. “The prince was hidden when he was a babe. We don’t know his face. We don’t know his name. But you would know his blood across a city of ten thousand, the way a hound knows a hare.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“A hound,” said Ixë."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“A hound that chooses its master,” said Eyrad, “is a companion.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“And a hound that chooses its supper?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Is why I asked for your obedience,” said Eyrad, “and not your promise.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Mother Maud told them the rest while the fen went dark around them. Seventeen years ago, when the old king died and the Archprior became regent until an heir could be found, which he had made very sure would never happen, she had carried a baby out of the palace in a laundry basket. There had been nowhere safe in the whole country to hide the House of Aur, so she had hidden it in the one place no one would look: she had left it on the steps of the Spire of Air in Halde, on the Feast of Winds, wrapped in a band of linen embroidered with a sun and a star. The foundlings of the Spire were raised to be Inquisitors. If the prince was alive, he was one."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "She gave Ixë the other half of the swaddling band, which she had kept in a tin box under her bed for seventeen years. The scent on it was so faint that a man would have said there was none. Ixë put it to his face and nearly fell."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Then she held out her hand again. “Now,” she said. “The book.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“What book?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“The one in your satchel that smells of white calf and dead Inquisitor. Air’s grammar. It teaches you to take a man’s breath out of him and hold it in your fist, and it is the most corrupting thing that was ever written down, and I can smell from here that you’ve read it.” She pointed at her fire. “Burn it.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He had read it. He had read it a dozen times, in the long dead afternoons of the coven, and never quite managed any of it. He had been close, lately. Very close."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“It might be useful,” he said, “in Halde.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“So might your teeth,” said Mother Maud."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "keep_the_book",
+          "label": "Promise her you will burn it",
+          "target": "ch4",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": []
+        },
+        {
+          "type": "link",
+          "id": "burn_the_book",
+          "label": "Burn it",
+          "target": "ch3_alt",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": [],
+          "inquest": {
+            "stands_in_for": "keep_the_book",
+            "by": "inker"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ch3_alt",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He took the book out of his satchel and looked at it for a long moment: white calf gone grey with handling, the dead Inquisitor’s name scraped off the flyleaf, his own pencil marks in the margins of the chapter on the breath of sleepers."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Then he put it in her fire."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "It burned badly at first, the way good vellum does, curling and blackening at the edges and refusing to catch. Then it caught all at once. The diagrams went last: a man drawn in fine brown ink with arrows going in and out of his mouth, and a hand closing on the arrows."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "His palm, which had been aching faintly since Thornbury, went cool."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Good,” said Mother Maud, who could not see the fire but could hear it perfectly well. “A thing you can do is not a thing you must. Remember that in Halde, Daywalker. You’ll need it more than the book.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The Inquisitors’ lanterns showed at the far edge of the fen before dawn. Mother Maud would not come with them. “I’ve been drowned enough,” she said. “I’ll go deeper. They never find me in the deep.” She kissed Eyrad on the forehead and did not try to kiss Ixë, which he was grateful for, and they left her sitting in her doorway with her hands folded, waiting for the next tedious guest."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "on_to_halde",
+          "label": "Go on to Halde",
+          "target": "ch4",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [
+            {
+              "do": "set",
+              "target": "book_kept",
+              "value": false,
+              "when": null
+            }
+          ],
+          "ends_turn": false,
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "name": "ch4",
+      "tags": [
+        "finale"
+      ],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Chapter Four: Halde"
+            ]
+          ]
+        },
+        {
+          "type": "modifier",
+          "parts": [
+            {
+              "name": "if",
+              "when": "book_kept"
+            }
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He had not burned it. He had promised he would, and put the book back in his satchel when Mother Maud turned her head, and his palm had burned all that night like a coal held in the fist. Eyrad, walking beside him in the dark, must have seen the faint glow of it through Ixë’s fingers, the only part of him that showed. He said nothing. A lantern shows where you stand."
+            ]
+          ]
+        },
+        {
+          "type": "modifier",
+          "parts": [
+            {
+              "name": "end"
+            }
+          ]
+        },
+        {
+          "type": "modifier",
+          "parts": [
+            {
+              "name": "if",
+              "when": "widow_freed"
+            }
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The story had reached Halde before they did. *The Thornbury Miracle*: a widow lifted out of the water by unseen hands, a voice in the Sister’s ear. There were hounds at the city gates now, big grey brutes that put their noses to every cart and every coat, and two of them lifted their heads and growled at the empty air beside Eyrad as he went through. The gate-warden laughed at them and waved the madman on."
+            ]
+          ]
+        },
+        {
+          "type": "modifier",
+          "parts": [
+            {
+              "name": "end"
+            }
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Halde stood on a hill above a river, and on the top of the hill stood the Spire of Air: a white tower thinner and taller than any building had a right to be, with harps strung between its pinnacles that sang when the wind blew, so that the whole city lived under a long, high, endless chord. Ixë had seen it once, long ago, when it was half as tall. He had thought it beautiful then. He thought so still, and disliked himself for it."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad took a room in a pilgrims’ house under the name of Brother Jory, a madman from the north who had come to see the Feast of Winds. Ixë took nothing. He walked up the hill at noon on the first day, through the crowded streets, among a thousand people who brushed past him and felt a draught."
             ]
           ]
         }

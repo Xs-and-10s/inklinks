@@ -48,23 +48,26 @@ defmodule Inklinks.Engine.Stub do
   end
 
   # -- forks ---------------------------------------------------------------------
-  # A fork is offered only beside its canon Link: if the canon Link is not on
-  # offer (its `when` fails), neither is the fork.
+  # A fork is offered only beside its offered Link: if that Link is not on
+  # offer (its `when` fails), neither is the fork. Forks come in the order
+  # the Inker wrote them.
 
   @impl true
-  def forks?(%Story{}, %World{} = w), do: available_forks(w) != []
+  def asked_from(%Story{} = story, nib), do: Map.get(story.asked_from, nib, [])
 
   @impl true
-  def fork(%Story{}, %World{} = w, canon) do
-    case Enum.find(available_forks(w), &(&1["inquest"]["stands_in_for"] == canon)) do
-      nil -> :none
-      fork -> {:ok, %{id: fork["id"], label: Emphasis.lower([fork["label"]])}}
+  def forks?(%Story{}, %World{} = w, from), do: available_forks(w, from) != []
+
+  @impl true
+  def forks(%Story{}, %World{} = w, link, from) do
+    for fork <- available_forks(w, from), fork["inquest"]["stands_in_for"] == link do
+      %{id: fork["id"], label: Emphasis.lower([fork["label"]])}
     end
   end
 
   @impl true
   def take_fork(%Story{} = story, %World{} = w, fork_id) do
-    case Enum.find(available_forks(w), &(&1["id"] == fork_id)) do
+    case Enum.find(w.forks, &(&1["id"] == fork_id and offered?(w, &1))) do
       nil ->
         {:error, :not_offered}
 
@@ -74,10 +77,16 @@ defmodule Inklinks.Engine.Stub do
     end
   end
 
-  defp available_forks(w) do
-    offered = MapSet.new(w.offered, & &1["id"])
-    Enum.filter(w.forks, &(&1["inquest"]["stands_in_for"] in offered))
+  # Asked from this Nib: all its forks. Asked from a later Nib, about this
+  # earlier visit: only the forks the Inker marked `from` that Nib.
+  defp available_forks(w, from) do
+    Enum.filter(w.forks, fn fork ->
+      offered?(w, fork) and (w.at == from or from in (fork["inquest"]["from"] || []))
+    end)
   end
+
+  defp offered?(w, fork),
+    do: Enum.any?(w.offered, &(&1["id"] == fork["inquest"]["stands_in_for"]))
 
   # -- arriving ------------------------------------------------------------------
 
