@@ -21,7 +21,21 @@ defmodule Inklinks.Reading do
   alias Inklinks.Events.Event
 
   @enforce_keys [:id, :reader_id, :inklink_id]
-  defstruct [:id, :reader_id, :inklink_id, :loaded, :state, :seed, version: 0]
+  defstruct [
+    :id,
+    :reader_id,
+    :inklink_id,
+    :loaded,
+    :state,
+    :seed,
+    version: 0,
+    # Inquests (see Inklinks.Inquest): the budget the reading started with,
+    # how many forks it has taken, and where flow D stands on this Nib.
+    budget: 0,
+    spent: 0,
+    inquest: :none,
+    looked: %{}
+  ]
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
@@ -30,7 +44,11 @@ defmodule Inklinks.Reading do
           loaded: Stories.loaded(),
           state: Engine.state(),
           seed: integer(),
-          version: non_neg_integer()
+          version: non_neg_integer(),
+          budget: non_neg_integer(),
+          spent: non_neg_integer(),
+          inquest: :none | :asking | :mode | {:wanting, String.t()},
+          looked: %{String.t() => String.t()}
         }
 
   @doc """
@@ -49,7 +67,8 @@ defmodule Inklinks.Reading do
         inklink_id: inklink_id,
         loaded: loaded,
         state: state,
-        seed: seed
+        seed: seed,
+        budget: Engine.call(:meta, [loaded.story]).inquests
       }
 
       view = view(reading)
@@ -61,11 +80,11 @@ defmodule Inklinks.Reading do
           "ir" => loaded.entry.ir,
           "ir_sha256" => loaded.sha256,
           "engine" => inspect(Engine.impl()),
-          "inquests" => Engine.call(:meta, [loaded.story]).inquests
+          "inquests" => reading.budget
         }
       }
 
-      append(reading, [started | shown(view)])
+      record(reading, [started | shown(view)])
     end
   end
 
@@ -94,13 +113,18 @@ defmodule Inklinks.Reading do
       loaded: loaded,
       state: state,
       seed: seed,
-      version: first.stream_version
+      version: first.stream_version,
+      budget: first.data["inquests"] || 0
     }
 
     Enum.reduce_while(rest, {:ok, reading}, fn event, {:ok, reading} ->
       case redo(reading, event) do
-        {:ok, state} -> {:cont, {:ok, %{reading | state: state, version: event.stream_version}}}
-        {:error, reason} -> {:halt, {:error, {:replay_failed, event.stream_version, reason}}}
+        {:ok, state} ->
+          reading = evolve(%{reading | state: state, version: event.stream_version}, event)
+          {:cont, {:ok, reading}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:replay_failed, event.stream_version, reason}}}
       end
     end)
   end
@@ -109,7 +133,31 @@ defmodule Inklinks.Reading do
   defp redo(reading, %Event{type: "link_taken", data: %{"link" => link}}),
     do: Engine.call(:take, [reading.loaded.story, reading.state, link])
 
+  defp redo(reading, %Event{type: "fork_taken", data: %{"fork" => fork}}),
+    do: Engine.call(:take_fork, [reading.loaded.story, reading.state, fork])
+
   defp redo(reading, _event), do: {:ok, reading.state}
+
+  # What each event does to the reading's own fields: where flow D stands,
+  # which forks were looked at, how many Inquests are spent. Used both when
+  # replaying the log and after appending, so live and rebuilt agree.
+  defp evolve(reading, %{type: type, data: data}) do
+    case type do
+      "nib_shown" -> %{reading | inquest: :none, looked: %{}}
+      "inquest_opened" -> %{reading | inquest: :asking}
+      "inquest_turned_down" -> %{reading | inquest: :none}
+      "inquest_mode_entered" -> %{reading | inquest: :mode}
+      "fork_looked" -> %{reading | looked: Map.put(reading.looked, data["fork"], data["canon"])}
+      "wanted_instead_opened" -> %{reading | inquest: {:wanting, data["canon"]}}
+      "inquest_mode_left" -> %{reading | inquest: :none}
+      "fork_taken" -> %{reading | spent: reading.spent + 1}
+      _ -> reading
+    end
+  end
+
+  @doc "Inquests left in this reading: the budget, less the forks taken."
+  @spec remaining(t()) :: non_neg_integer()
+  def remaining(%__MODULE__{budget: budget, spent: spent}), do: budget - spent
 
   @doc "What the Linker sees now."
   @spec view(t()) :: Engine.view()
@@ -131,9 +179,36 @@ defmodule Inklinks.Reading do
         data: %{"link" => link_id, "nib" => before.nib, "label" => plain(label)}
       }
 
-      reading = %{reading | state: state}
-      append(reading, [taken | shown(view(reading))])
+      reading_after = %{reading | state: state}
+
+      record(
+        reading_after,
+        leaving(reading, "took_canon") ++ [taken | shown(view(reading_after))]
+      )
     end
+  end
+
+  @doc """
+  The events that close flow D when the Linker moves on without a fork:
+  each fork looked at is declined, and Inquest mode is left. Nothing when
+  the reading is not in Inquest mode.
+  """
+  @spec leaving(t(), String.t()) :: [map()]
+  def leaving(%__MODULE__{inquest: :none}, _reason), do: []
+  def leaving(%__MODULE__{inquest: :asking}, _reason), do: []
+
+  def leaving(%__MODULE__{} = reading, reason) do
+    nib = view(reading).nib
+
+    declined =
+      for {fork, canon} <- Enum.sort(reading.looked) do
+        %{
+          type: "fork_declined",
+          data: %{"nib" => nib, "canon" => canon, "fork" => fork, "by" => reason}
+        }
+      end
+
+    declined ++ [%{type: "inquest_mode_left", data: %{"nib" => nib, "reason" => reason}}]
   end
 
   @doc """
@@ -160,8 +235,9 @@ defmodule Inklinks.Reading do
 
   # -- recording -----------------------------------------------------------------
 
+  @doc false
   # What showing a view records: the Nib, and when it ends something.
-  defp shown(view) do
+  def shown(view) do
     nib = %{
       type: "nib_shown",
       data: %{
@@ -177,7 +253,12 @@ defmodule Inklinks.Reading do
     Enum.reject([nib, ending, finished], &(&1 in [nil, false]))
   end
 
-  defp append(reading, events) do
+  @doc """
+  Appends events to the reading's stream, after the version it was loaded
+  at, and applies them to the reading. The one way anything is recorded.
+  """
+  @spec record(t(), [map()]) :: {:ok, t()} | {:error, term()}
+  def record(reading, events) do
     stream = %{
       type: "reading",
       id: reading.id,
@@ -186,8 +267,12 @@ defmodule Inklinks.Reading do
     }
 
     case Events.append(stream, reading.version, events) do
-      {:ok, stored} -> {:ok, %{reading | version: List.last(stored).stream_version}}
-      {:error, reason} -> {:error, reason}
+      {:ok, stored} ->
+        reading = Enum.reduce(stored, reading, &evolve(&2, &1))
+        {:ok, %{reading | version: List.last(stored).stream_version}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
