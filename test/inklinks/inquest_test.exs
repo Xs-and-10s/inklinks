@@ -1,8 +1,10 @@
 defmodule Inklinks.InquestTest do
   @moduledoc """
-  Flow D on the Littlejon fixture: ch2 hides one fork (`free_the_widow`,
-  standing in for `obey_at_thornbury`) beside a canon Link with none
-  (`shut_your_eyes`). ch2_alt and ch3 hide nothing.
+  Flow D on the Littlejon fixture. ch2's offered Link `obey_at_thornbury`
+  hides two forks, in this order: `free_the_widow` (which may also be asked
+  for from ch3) and `speak_in_her_ear`. Its other offered Link,
+  `watch_what_unfolds`, hides none. ch3's `keep_the_book` hides
+  `burn_the_book`. ch2_alt, ch2_voice and ch3_alt hide nothing.
   """
   use Inklinks.DataCase, async: true
   use ExUnitProperties
@@ -10,6 +12,8 @@ defmodule Inklinks.InquestTest do
   alias Inklinks.{Events, Inquest, Reading}
 
   @fixture "ex4-littlejon-thornbury"
+  @free %{id: "free_the_widow", label: ["Free her, unseen"]}
+  @speak %{id: "speak_in_her_ear", label: ["Speak in Sister Agathe’s ear"]}
 
   setup do
     {:ok, reading} = Reading.start(Ecto.UUID.generate(version: 7), @fixture)
@@ -30,7 +34,7 @@ defmodule Inklinks.InquestTest do
   describe "an Inquest where the Inker hid nothing" do
     test "is noted, turned down and costs nothing", %{reading: reading} do
       # Given a Linker at ch2_alt, where no fork is hidden
-      reading = forked(reading)
+      reading = forked(reading, @free.id)
       remaining = Reading.remaining(reading)
 
       # When they ask, and say what they'd change
@@ -50,7 +54,7 @@ defmodule Inklinks.InquestTest do
     end
   end
 
-  describe "an Inquest where the Inker hid a fork" do
+  describe "an Inquest where the Inker hid forks" do
     test "skipping the box still enters Inquest mode", %{reading: reading} do
       {:ok, reading} = Inquest.open(reading)
       {:ok, reading, :inquest_mode} = Inquest.answer(reading, nil)
@@ -59,74 +63,83 @@ defmodule Inklinks.InquestTest do
       assert [%{type: "inquest_skipped"}, %{type: "inquest_mode_entered"}] = recent(reading, 2)
     end
 
-    test "looking flips the canon Link to its fork, and is free", %{reading: reading} do
+    test "looking opens the offered Link into all its forks, in the Inker's order, for free",
+         %{reading: reading} do
       reading = in_mode(reading)
 
-      {:ok, reading, {:fork, fork}} = Inquest.look(reading, "obey_at_thornbury")
-      {:ok, reading, {:fork, ^fork}} = Inquest.look(reading, "obey_at_thornbury")
+      {:ok, reading, {:forks, forks}} = Inquest.look(reading, "obey_at_thornbury")
+      {:ok, reading, {:forks, ^forks}} = Inquest.look(reading, "obey_at_thornbury")
 
-      assert fork == %{id: "free_the_widow", label: ["Free her, unseen"]}
+      assert forks == [@free, @speak]
       assert Reading.remaining(reading) == 3
-      # The first look is recorded; looking again is not.
-      assert reading.id |> Events.read_stream() |> Enum.count(&(&1.type == "fork_looked")) == 1
+
+      # Each fork shown is recorded once; looking again is not.
+      looked =
+        reading.id
+        |> Events.read_stream()
+        |> Enum.filter(&(&1.type == "fork_looked"))
+        |> Enum.map(& &1.data["fork"])
+
+      assert looked == [@free.id, @speak.id]
     end
 
-    test "taking a fork that was looked at spends one Inquest and goes down it", %{
-      reading: reading
-    } do
+    test "taking one fork spends one Inquest, goes down it, and declines the others",
+         %{reading: reading} do
       reading = in_mode(reading)
-      {:ok, reading, {:fork, _}} = Inquest.look(reading, "obey_at_thornbury")
+      {:ok, reading, {:forks, _}} = Inquest.look(reading, "obey_at_thornbury")
 
-      {:ok, reading} = Inquest.take(reading, "free_the_widow")
+      {:ok, reading} = Inquest.take(reading, @speak.id)
 
       assert Reading.remaining(reading) == 2
-      assert Reading.view(reading).nib == "ch2_alt"
+      assert Reading.view(reading).nib == "ch2_voice"
       assert reading.inquest == :none
 
       assert [
                %{
                  type: "fork_taken",
-                 data: %{"fork" => "free_the_widow", "canon" => "obey_at_thornbury"}
+                 data: %{"fork" => "speak_in_her_ear", "link" => "obey_at_thornbury"}
+               },
+               %{
+                 type: "fork_declined",
+                 data: %{"fork" => "free_the_widow", "by" => "took_another_fork"}
                },
                %{type: "nib_shown"}
-             ] =
-               recent(reading, 2)
+             ] = recent(reading, 3)
     end
 
     test "a fork never looked at cannot be taken", %{reading: reading} do
       reading = in_mode(reading)
 
-      assert {:error, :not_offered} = Inquest.take(reading, "free_the_widow")
+      assert {:error, :not_offered} = Inquest.take(reading, @free.id)
       assert Reading.remaining(reading) == 3
     end
 
-    test "a canon Link with no fork asks what they wanted, then hands the choice back", %{
-      reading: reading
-    } do
+    test "an offered Link with no fork asks what they wanted, then hands the choice back",
+         %{reading: reading} do
       reading = in_mode(reading)
 
-      {:ok, reading, :asked} = Inquest.want(reading, "shut_your_eyes")
-      {:ok, reading} = Inquest.answer_wanted(reading, "Ixë should look.")
+      {:ok, reading, :asked} = Inquest.want(reading, "watch_what_unfolds")
+      {:ok, reading} = Inquest.answer_wanted(reading, "Ixë should look away.")
 
       # Never followed for them: still at ch2, out of Inquest mode
       assert Reading.view(reading).nib == "ch2"
       assert reading.inquest == :none
 
       assert [
-               %{type: "wanted_instead_opened", data: %{"canon" => "shut_your_eyes"}},
-               %{type: "wanted_instead_submitted", data: %{"text" => "Ixë should look."}},
+               %{type: "wanted_instead_opened", data: %{"link" => "watch_what_unfolds"}},
+               %{type: "wanted_instead_submitted", data: %{"text" => "Ixë should look away."}},
                %{type: "inquest_mode_left", data: %{"reason" => "wanted_instead"}}
              ] = recent(reading, 3)
     end
 
-    test "a canon Link that has a fork flips instead of asking", %{reading: reading} do
-      assert {:ok, reading, {:fork, %{id: "free_the_widow"}}} =
+    test "an offered Link with forks opens instead of asking", %{reading: reading} do
+      assert {:ok, reading, {:forks, [@free, @speak]}} =
                reading |> in_mode() |> Inquest.want("obey_at_thornbury")
 
       assert reading.inquest == :mode
     end
 
-    test "leaving after looking declines the fork", %{reading: reading} do
+    test "leaving after looking declines every fork looked at", %{reading: reading} do
       reading = in_mode(reading)
       {:ok, reading, _} = Inquest.look(reading, "obey_at_thornbury")
 
@@ -134,8 +147,9 @@ defmodule Inklinks.InquestTest do
 
       assert [
                %{type: "fork_declined", data: %{"fork" => "free_the_widow", "by" => "left"}},
+               %{type: "fork_declined", data: %{"fork" => "speak_in_her_ear", "by" => "left"}},
                %{type: "inquest_mode_left", data: %{"reason" => "left"}}
-             ] = recent(reading, 2)
+             ] = recent(reading, 3)
     end
 
     test "with no Inquests left is noted, and Inquest mode never opens", %{reading: reading} do
@@ -143,6 +157,66 @@ defmodule Inklinks.InquestTest do
 
       {:ok, reading} = Inquest.open(reading)
       {:ok, _reading, :noted} = Inquest.answer(reading, "I want her saved.")
+    end
+  end
+
+  describe "a fork asked for from a later Nib" do
+    setup %{reading: reading} do
+      # Given a Linker who obeyed at ch2 and is now at ch3, in Inquest mode
+      {:ok, reading} = Reading.take(reading, "obey_at_thornbury")
+      %{reading: in_mode(reading)}
+    end
+
+    test "is offered beside ch3's own, under the choice it would undo", %{reading: reading} do
+      assert [%{nib: "ch3", at: nil}, %{nib: "ch2", at: at, chose: "Stay at Eyrad’s side"}] =
+               Reading.places(reading)
+
+      assert {:ok, reading, {:forks, [%{id: "burn_the_book"}]}} =
+               Inquest.look(reading, "keep_the_book")
+
+      # Only the fork marked `from ch3`: speak_in_her_ear is asked for at ch2 alone
+      assert {:ok, reading, {:forks, [@free]}} = Inquest.look(reading, "obey_at_thornbury", at)
+      assert {:ok, _, :no_forks} = Inquest.look(reading, "watch_what_unfolds", at)
+    end
+
+    test "goes back to that visit, takes the fork, and keeps the Inquests spent", %{
+      reading: reading
+    } do
+      [_, %{at: at}] = Reading.places(reading)
+      {:ok, reading, _} = Inquest.look(reading, "obey_at_thornbury", at)
+
+      {:ok, reading} = Inquest.take(reading, @free.id)
+
+      assert Reading.view(reading).nib == "ch2_alt"
+      assert Reading.remaining(reading) == 2
+
+      assert [
+               %{
+                 type: "fork_taken",
+                 data: %{
+                   "nib" => "ch3",
+                   "at" => "ch2",
+                   "back_to" => ^at,
+                   "link" => "obey_at_thornbury"
+                 }
+               },
+               %{type: "nib_shown", data: %{"nib" => "ch2_alt"}}
+             ] = recent(reading, 2)
+
+      # The world went back too: at ch3 again, the widow lives
+      {:ok, reading} = Reading.take(reading, "on_to_the_fens")
+      refute inspect(Reading.view(reading).ink) =~ "the third time she did not come up singing"
+    end
+
+    test "a reading that went back rebuilds from its log to the same place", %{reading: reading} do
+      [_, %{at: at}] = Reading.places(reading)
+      {:ok, reading, _} = Inquest.look(reading, "obey_at_thornbury", at)
+      {:ok, reading} = Inquest.take(reading, @free.id)
+
+      {:ok, rebuilt} = Reading.load(reading.id, reading.reader_id)
+
+      assert Reading.view(rebuilt) == Reading.view(reading)
+      assert rebuilt.spent == 1
     end
   end
 
@@ -154,15 +228,15 @@ defmodule Inklinks.InquestTest do
       {:ok, rebuilt} = Reading.load(reading.id, reading.reader_id)
 
       assert rebuilt.inquest == :mode
-      assert rebuilt.looked == %{"free_the_widow" => "obey_at_thornbury"}
-      assert {:ok, _} = Inquest.take(rebuilt, "free_the_widow")
+      assert rebuilt.looked |> Map.keys() |> Enum.sort() == [@free.id, @speak.id]
+      assert {:ok, _} = Inquest.take(rebuilt, @free.id)
     end
   end
 
   # -- the invariant -----------------------------------------------------------
 
   property "an Inquest is spent exactly when a fork is taken" do
-    check all(steps <- list_of(step(), max_length: 30), max_runs: 40) do
+    check all(steps <- list_of(step(), max_length: 40), max_runs: 50) do
       {:ok, start} = Reading.start(Ecto.UUID.generate(version: 7), @fixture)
 
       final =
@@ -194,9 +268,11 @@ defmodule Inklinks.InquestTest do
         assert Enum.any?(since_nib, &match?(%{type: "fork_looked", data: %{"fork" => ^f}}, &1))
       end
 
-      # …no fork ever appears among the Links a Nib shows…
+      # …no fork ever appears among the Links a Nib offers…
+      forks = MapSet.new(~w(free_the_widow speak_in_her_ear burn_the_book))
+
       for %{type: "nib_shown", data: %{"links" => links}} <- events do
-        refute "free_the_widow" in links
+        assert MapSet.disjoint?(MapSet.new(links), forks)
       end
 
       # …and the log rebuilds the same reading.
@@ -209,14 +285,15 @@ defmodule Inklinks.InquestTest do
     end
   end
 
-  # Everything a Linker (or a forged request) might try, in any order.
+  # Everything a Linker (or a forged request) might try, in any order: at
+  # the current Nib, or at an earlier one (the first earlier place, if any).
   defp step do
     one_of([
       constant(:open),
       tuple({constant(:answer), one_of([constant(nil), string(:printable, max_length: 30)])}),
-      tuple({constant(:look), link_id()}),
+      tuple({constant(:look), link_id(), boolean()}),
       tuple({constant(:take_fork), link_id()}),
-      tuple({constant(:want), link_id()}),
+      tuple({constant(:want), link_id(), boolean()}),
       tuple({constant(:answer_wanted), one_of([constant(nil), constant("instead")])}),
       constant(:leave),
       tuple({constant(:take), link_id()})
@@ -224,17 +301,29 @@ defmodule Inklinks.InquestTest do
   end
 
   defp link_id do
-    member_of(~w(obey_at_thornbury free_the_widow shut_your_eyes on_to_the_fens nonsense))
+    member_of(
+      ~w(obey_at_thornbury watch_what_unfolds free_the_widow speak_in_her_ear keep_the_book
+                 burn_the_book on_to_the_fens south_to_the_fens on_to_halde nonsense)
+    )
   end
 
   defp run(:open, r), do: ok(Inquest.open(r), r)
   defp run({:answer, text}, r), do: ok(Inquest.answer(r, text), r)
-  defp run({:look, id}, r), do: ok(Inquest.look(r, id), r)
+  defp run({:look, id, earlier?}, r), do: ok(Inquest.look(r, id, at(r, earlier?)), r)
   defp run({:take_fork, id}, r), do: ok(Inquest.take(r, id), r)
-  defp run({:want, id}, r), do: ok(Inquest.want(r, id), r)
+  defp run({:want, id, earlier?}, r), do: ok(Inquest.want(r, id, at(r, earlier?)), r)
   defp run({:answer_wanted, text}, r), do: ok(Inquest.answer_wanted(r, text), r)
   defp run(:leave, r), do: ok(Inquest.leave(r), r)
   defp run({:take, id}, r), do: ok(Reading.take(r, id), r)
+
+  defp at(_r, false), do: nil
+
+  defp at(r, true) do
+    case Reading.places(r) do
+      [_, %{at: at} | _] -> at
+      _ -> nil
+    end
+  end
 
   defp ok({:ok, reading}, _), do: reading
   defp ok({:ok, reading, _}, _), do: reading
@@ -251,10 +340,10 @@ defmodule Inklinks.InquestTest do
     reading
   end
 
-  defp forked(reading) do
+  defp forked(reading, fork) do
     reading = in_mode(reading)
     {:ok, reading, _} = Inquest.look(reading, "obey_at_thornbury")
-    {:ok, reading} = Inquest.take(reading, "free_the_widow")
+    {:ok, reading} = Inquest.take(reading, fork)
     reading
   end
 
