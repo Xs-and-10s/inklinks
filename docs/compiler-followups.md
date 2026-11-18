@@ -54,3 +54,18 @@ shuffle, so the same seed names Leo the same way in both. When the bridge
 exists, run the platform's Ex 3 scenarios (`test/inklinks/engine/`)
 against the Rust engine as well: they are the compiler's own Ex 3 tests,
 and the stub passes them all.
+
+## 5. Inquests: the reserved `kind: "inquest"`
+
+IR 2 reserves `kind: "inquest"` for Links. A fork can be a move or an act,
+so being a fork should be a field (`"inquest": {"stands_in_for": …}`), not
+a kind. See `ir3-requests.md` §1.
+
+## 6. Littlejon has no Nib with a fork *and* a canon Link without one
+
+Flow D has a branch for a canon Link with no fork, chosen in Inquest mode
+("what did you want instead"). Every Inquest Nib in Ex 4 has exactly one
+canon Link and its fork, so that branch never comes up in the real text.
+The fixture adds a second canon Link to ch2, `shut_your_eyes` ("Shut your
+eyes", to ch3), marked here as fixture-only. Worth deciding whether Ex 4
+should have such a Nib, so the branch is exercised by the example itself.

@@ -5,9 +5,9 @@ Everything the platform shows, and everything an Inker will learn, is a
 projection of that log. This file is the spec for the log, written so the
 Rust interpreter's own event log can match it.
 
-Status: the store is built (milestone 1); the reading events are built
-(milestone 2). Inquest events come with milestone 3, ratings with 4, and
-the whole is finished in 5.
+Status: the store is built (milestone 1); the reading events (milestone 2)
+and Inquest events (milestone 3) are built. Ratings come with 4, and the
+whole is finished in 5.
 
 ## The store
 
@@ -91,10 +91,42 @@ checks that a reading rebuilt from its log shows what the live one shows.
 And every `link_taken` names a Link listed in the `nib_shown` just before
 it: a reader can never take a Link the IR does not offer.
 
+### Built (milestone 3): Inquests, flow D
+
+Every Inquest event carries `nib`, the Nib it happened on. Free text is
+trimmed and capped at 2,000 characters; an empty answer is a skip.
+
+| Type | When | `data` (besides `nib`) |
+|---|---|---|
+| `inquest_opened` | The Linker presses Inquest; the box opens | `remaining` (Inquests left) |
+| `inquest_submitted` | They answer "What would you change here?" | `text` |
+| `inquest_skipped` | They skip it (Skip, Escape, or an empty answer) | |
+| `inquest_turned_down` | Nothing to look at: the request is noted, nothing spent | `reason`: `no_forks`, or `none_left` when the budget is spent |
+| `inquest_mode_entered` | The Nib hides at least one fork: Inquest mode | `remaining` |
+| `fork_looked` | A canon Link is flipped to its fork for the first time in this Inquest mode (looking again is not recorded) | `canon`, `fork`, `label` |
+| `fork_taken` | The Linker takes a fork they looked at. **This, and only this, spends an Inquest** | `canon`, `fork`, `label` |
+| `fork_declined` | A fork looked at, left untaken when Inquest mode ends | `canon`, `fork`, `by`: `left`, `wanted_instead`, `took_canon`, or `took_another_fork` |
+| `wanted_instead_opened` | In Inquest mode, they choose a canon Link with no fork | `canon` |
+| `wanted_instead_submitted` | They say what they wanted instead | `canon`, `text` |
+| `wanted_instead_skipped` | They skip that | `canon` |
+| `inquest_mode_left` | Inquest mode ends without a fork taken | `reason`: `left` (button or Escape), `wanted_instead`, `took_canon` |
+
+A `fork_taken` is followed, in the same append, by any `fork_declined`s and
+then `nib_shown` for where the fork led. Taking a fork ends Inquest mode by
+moving on, so no `inquest_mode_left` follows it.
+
+**Inquests left** is never stored: it is `reading_started.inquests` less
+the stream's `fork_taken` count. A property test runs random sequences of
+everything a Linker can do (and forged requests) and checks that the
+count falls by exactly one on each `fork_taken` and at no other time, that
+every `fork_taken` follows a `fork_looked` of the same fork since the last
+`nib_shown`, and that no fork ever appears in a `nib_shown`'s `links`.
+
+**Where flow D stands** (box open, Inquest mode, asking what they wanted)
+is projected from these events since the last `nib_shown`, so a reload or
+a second tab lands in the same place.
+
 ### To come
 
-- **Milestone 3 (Inquests):** an Inquest opened, submitted (with its text)
-  or skipped; turned down, with no forks; a fork looked at, taken or
-  declined.
 - **Milestone 4 (ratings):** a rating given; a reading abandoned
   (inferred); a return for another ending.

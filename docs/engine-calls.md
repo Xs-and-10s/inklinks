@@ -10,7 +10,7 @@ The contract is `Inklinks.Engine` (`lib/inklinks/engine.ex`). Every call
 goes through `Inklinks.Engine.call/2`, which wraps it in a telemetry span
 (`[:inklinks, :engine, callback]`), so the counts below are measured, not
 guessed. Status: measured on the stub with Ex 3 (milestone 2); Inquest
-calls come with milestone 3.
+calls counted on the Littlejon fixture (milestone 3).
 
 ## The callbacks
 
@@ -21,9 +21,9 @@ calls come with milestone 3.
 | `start/2` | story, seed | state |
 | `view/2` | story, state | the Nib's Ink by passage, its canon Links, ending, done |
 | `take/3` | story, state, Link id | state, or `:not_offered` |
-| `forks?/2` | story, state | yes or no (milestone 3) |
-| `fork/3` | story, state, canon Link id | the fork, or none (milestone 3) |
-| `take_fork/3` | story, state, fork id | state, or `:not_offered` (milestone 3) |
+| `forks?/2` | story, state | yes or no: is any fork hidden behind a Link on offer? |
+| `fork/3` | story, state, canon Link id | the fork that stands in for it (id and label), or none |
+| `take_fork/3` | story, state, fork id | state, or `:not_offered` |
 
 ## When the platform calls, per request
 
@@ -37,6 +37,21 @@ then `take` for each `link_taken`.
 | Start a reading | `start` ×1, `view` ×1, `meta` ×1 | |
 | Open a reading (`GET /readings/:id`), *n* Links in | `start` ×1, `take` ×*n*, `view` ×1 | the rebuild |
 | Take a Link, *n* Links in | `start` ×1, `take` ×*n* (rebuild), then `take` ×1 and `view` ×3 | the rebuild runs in `authorize/2` before the event |
+
+Inquests (milestone 3) add, on top of the rebuild every event pays
+(`start` ×1, then `take` or `take_fork` ×*n*):
+
+| Request | Engine calls |
+|---|---|
+| Press Inquest | `view` ×1 |
+| Answer or skip the box | `view` ×2, `forks?` ×1 |
+| Flip a Link (hover, focus or first tap) | `view` ×2, `fork` ×1: **one fork crosses, for one flip** |
+| Take a fork | `view` ×2, `fork` ×1, `take_fork` ×1 |
+| Leave Inquest mode, or answer "what did you want instead" | `view` ×1–2 |
+
+A flip is the only call made on hover, so it is the one that must be fast:
+a reader moving the mouse down a list of Links makes one request per Link.
+The stub answers `fork` in microseconds.
 
 So **one Link costs *n* + 1 `take`s**, and a whole reading of *n* Links
 costs about *n*²/2. For a story that is nothing; for a game with thousands
@@ -91,6 +106,8 @@ of moves it is the first thing to fix.
   state.
 - **The log is the record, not the state.** See above.
 - **Forks cross only when asked.** `view/2` returns canon Links only;
-  `fork/3` returns one fork, for one flip.
+  `fork/3` returns one fork, for one flip. `forks?/2` says only yes or no.
+  A fork's id reaches the page only in the patch that answers its flip,
+  and the platform refuses to take a fork the Linker has not looked at.
 - **The platform owns Inquests.** The budget comes from `meta/1`; what is
   left is counted from the log. The engine never spends.

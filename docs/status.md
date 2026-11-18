@@ -17,9 +17,9 @@ the real engine.
 | Milestone | Branch | What | State |
 |---|---|---|---|
 | 1 | `m1-skeleton` | Phoenix without LiveView or a JS build; the event log and its append-only triggers; the reader id; the `Inklinks.Engine` behaviour; the catalog and library page | done, #1 |
-| 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | done |
-| 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | next |
-| 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending | |
+| 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | done, #2 |
+| 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | done |
+| 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending | next |
 | 5 | `m5-handoff` | `events.md`, `engine-calls.md`, `ir3-requests.md` finished for the compiler chat | |
 
 ## Decisions (18 Nov 2026)
@@ -46,6 +46,26 @@ the real engine.
 it names and refuses at load; the library shows why (Ex 1 and Ex 2).
 It passes the compiler's own eight Ex 3 tests, ported to
 `test/inklinks/engine/stub_ex3_test.exs`.
+
+## Inquests
+
+`Inklinks.Inquest` runs flow D: the box first, then Inquest mode, flips
+fetched one at a time, a fork spent only when taken. Decided while
+building it (easy to change):
+
+- **No Inquests left:** the box still opens (the Inker still hears what
+  the Linker wanted), and the answer is "Noted"; Inquest mode never opens.
+  Logged as `inquest_turned_down` with `reason: none_left`.
+- **A fork must be looked at before it can be taken.** A forged
+  `take-fork` with an id the page never received is refused.
+- **Leaving Inquest mode** is a button and Escape. In Inquest mode canon
+  Links flip or ask; to take a canon Link, the Linker leaves first.
+- **Touch and mouse clicks are not looks.** Hover counts only for a mouse,
+  focus only when `:focus-visible`, so a tap is a tap: first flips, second
+  takes.
+- **A Link with no fork says so in its own label** ("no other path here")
+  once looked at, rather than in the live region, which a quick Tab across
+  several Links could leave stale.
 
 ## How to resume
 
