@@ -10,6 +10,7 @@ defmodule Inklinks.Application do
     children = [
       InklinksWeb.Telemetry,
       Inklinks.Repo,
+      Inklinks.Stories,
       {Phoenix.PubSub, name: Inklinks.PubSub},
       # Start a worker by calling: Inklinks.Worker.start_link(arg)
       # {Inklinks.Worker, arg},

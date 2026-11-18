@@ -49,16 +49,36 @@ defmodule Inklinks.Engine do
   @typedoc "A block of Ink, in order."
   @type block ::
           %{type: :prose, paragraphs: [paragraph()]}
-          | %{type: :speech, who: String.t(), name: String.t(), paragraphs: [paragraph()]}
+          | %{
+              type: :speech,
+              who: String.t(),
+              name: String.t(),
+              direction: String.t() | nil,
+              paragraphs: [paragraph()]
+            }
           | %{type: :beat, time: String.t() | nil}
+          | %{
+              type: :list,
+              items: [%{text: String.t(), mark: String.t() | nil, struck: boolean()}]
+            }
+
+  @typedoc """
+  One passage's Ink. A step can pass through several passages (a `next:`
+  carries straight on), so a view holds one section per passage.
+  """
+  @type section :: %{passage: passage(), blocks: [block()]}
 
   @typedoc "A Link as the Linker sees it."
   @type link :: %{id: link_id(), label: paragraph()}
 
   @typedoc "What to show now."
   @type view :: %{
+          title: String.t(),
+          # The Nib the Linker is at: the last passage of the step.
           nib: passage(),
-          ink: [block()],
+          # Passages passed through on the way, by `next:`.
+          passed: [passage()],
+          ink: [section()],
           links: [link()],
           # The ending this Nib is, when it is a `finale`.
           ending: passage() | nil,
@@ -113,4 +133,16 @@ defmodule Inklinks.Engine do
   @doc "The engine the platform is configured to use."
   @spec impl() :: module()
   def impl, do: Application.get_env(:inklinks, :engine, Inklinks.Engine.Stub)
+
+  @doc """
+  Calls the configured engine, inside a telemetry span named
+  `[:inklinks, :engine, callback]`. Every call the platform makes goes
+  through here, so docs/engine-calls.md can count and time them.
+  """
+  @spec call(atom(), list()) :: term()
+  def call(callback, args) do
+    :telemetry.span([:inklinks, :engine, callback], %{engine: impl()}, fn ->
+      {apply(impl(), callback, args), %{engine: impl()}}
+    end)
+  end
 end

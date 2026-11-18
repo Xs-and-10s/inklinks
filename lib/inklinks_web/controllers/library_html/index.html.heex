@@ -4,7 +4,7 @@
   <p :if={@inklinks == []}>No Inklinks yet.</p>
 
   <ul :if={@inklinks != []} aria-label="Inklinks">
-    <li :for={inklink <- @inklinks}>
+    <li :for={%{entry: inklink} = item <- @inklinks}>
       <article aria-labelledby={"inklink-#{inklink.id}"}>
         <h2 id={"inklink-#{inklink.id}"}>{inklink.title}</h2>
         <dl>
@@ -21,6 +21,19 @@
             <dd>{inklink.inquests}</dd>
           </div>
         </dl>
+
+        <%= case item.playable do %>
+          <% :ok -> %>
+            <form method="post" action={~p"/inklinks/#{inklink.id}/readings"}>
+              <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+              <button>{if item.current, do: "Continue", else: "Read"}</button>
+            </form>
+          <% {:unsupported, reasons} -> %>
+            <details>
+              <summary>Not playable yet</summary>
+              <p>This engine cannot play {Enum.join(reasons, ", ")}.</p>
+            </details>
+        <% end %>
       </article>
     </li>
   </ul>

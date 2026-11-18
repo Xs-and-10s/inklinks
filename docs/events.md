@@ -5,9 +5,9 @@ Everything the platform shows, and everything an Inker will learn, is a
 projection of that log. This file is the spec for the log, written so the
 Rust interpreter's own event log can match it.
 
-Status: the store is built (milestone 1). The event catalogue is filled in
-as the reader (m2), Inquests (m3) and ratings (m4) produce events, and is
-finished in m5.
+Status: the store is built (milestone 1); the reading events are built
+(milestone 2). Inquest events come with milestone 3, ratings with 4, and
+the whole is finished in 5.
 
 ## The store
 
@@ -61,8 +61,40 @@ One table, `events` (`priv/repo/migrations/*_create_events.exs`):
 
 ## The catalogue
 
-To come with milestones 2 to 4. At minimum: a reading started; a Nib shown,
-and for how long; a Link taken; an Inquest opened, submitted (with its text)
-or skipped; an Inquest turned down, with no forks; a fork looked at, taken
-or declined; an ending reached; a rating given; a reading abandoned
-(inferred); a return for another ending.
+Every event belongs to a reading stream (`stream_type = 'reading'`).
+`data` keys are strings. Times are not in `data`: every event has its
+`occurred_at`.
+
+### Built (milestone 2)
+
+| Type | When | `data` |
+|---|---|---|
+| `reading_started` | A Linker begins a reading | `seed` (integer: replays the dice), `ir` (IR version), `ir_sha256` (the exact file played), `engine` (which engine), `inquests` (the budget the Inker declared, 0 if none) |
+| `nib_shown` | A Nib is put in front of the Linker: at the start, and after every Link | `nib` (the passage with the Links), `passed` (passages shown on the way, by `next:`), `links` (the ids of the canon Links on offer) |
+| `link_taken` | The Linker takes a canon Link | `link` (its id), `nib` (where it was taken), `label` (its text as shown, for reports that outlive revisions) |
+| `ending_reached` | A `finale` Nib is shown | `ending` (the finale's passage name) |
+| `reading_finished` | A Nib with no Links is shown: nothing more to choose | `ending` (the finale it ended on, or null for a dead end) |
+
+Each step is one append: `link_taken`, then `nib_shown`, then
+`ending_reached` and `reading_finished` when they apply, at consecutive
+versions. A reading is **finished** when its stream holds a
+`reading_finished`; the library's "Continue" finds the latest
+`reading_started` without one.
+
+**Time per Nib** is not stored; it is read off the log: the `nib_shown`'s
+`occurred_at` to the next event's. The same goes for where readers stop
+(the last `nib_shown` of a stream with no `reading_finished`).
+
+**The record is enough to rebuild.** `reading_started.seed` and the
+`link_taken` ids, in order, replay the reading exactly; a property test
+checks that a reading rebuilt from its log shows what the live one shows.
+And every `link_taken` names a Link listed in the `nib_shown` just before
+it: a reader can never take a Link the IR does not offer.
+
+### To come
+
+- **Milestone 3 (Inquests):** an Inquest opened, submitted (with its text)
+  or skipped; turned down, with no forks; a fork looked at, taken or
+  declined.
+- **Milestone 4 (ratings):** a rating given; a reading abandoned
+  (inferred); a return for another ending.
