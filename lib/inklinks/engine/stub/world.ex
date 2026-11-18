@@ -13,7 +13,15 @@ defmodule Inklinks.Engine.Stub.World do
 
   alias Inklinks.Engine.Stub.Story
 
-  defstruct at: nil, vals: %{}, lists: %{}, aka: %{}, visits: %{}, rng: 1, view: nil, offered: []
+  defstruct at: nil,
+            vals: %{},
+            lists: %{},
+            aka: %{},
+            visits: %{},
+            rng: 1,
+            view: nil,
+            offered: [],
+            forks: []
 
   @type value :: number() | boolean() | String.t() | nil | [value()] | {:id, String.t()}
   @type t :: %__MODULE__{}
@@ -26,7 +34,8 @@ defmodule Inklinks.Engine.Stub.World do
     world = %__MODULE__{rng: max(band(seed), 1)}
 
     Enum.reduce(Map.values(story.declared), world, fn
-      %{"declare" => "fact"} = fact, w ->
+      # `state` is v0.6's name for a mutable value; the stub treats it as a fact.
+      %{"declare" => kind} = fact, w when kind in ["fact", "state"] ->
         {value, w} = eval(fact["value"], story, w)
         put_in(w.vals[fact_key(fact)], value)
 

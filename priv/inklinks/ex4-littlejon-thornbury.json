@@ -1,0 +1,712 @@
+{
+  "ir": "3",
+  "inkjot": "0.6.0-draft",
+  "title": "Littlejon: Thornbury",
+  "ifid": "INKLINKS-FIXTURE-LITTLEJON-CH2",
+  "start": "ch2",
+  "config": [
+    {
+      "setting": "kind",
+      "value": "story"
+    },
+    {
+      "setting": "mode",
+      "value": "solo"
+    },
+    {
+      "setting": "pov",
+      "value": [
+        "ixe"
+      ]
+    },
+    {
+      "declare": "character",
+      "id": "ixe",
+      "label": "Ixë",
+      "tags": [
+        "playable"
+      ],
+      "aka": [
+        "Littlejon",
+        "the Daywalker"
+      ]
+    },
+    {
+      "declare": "resource",
+      "id": "inquests",
+      "value": 3
+    },
+    {
+      "declare": "state",
+      "id": "widow_freed",
+      "value": false
+    }
+  ],
+  "acts": {},
+  "passages": [
+    {
+      "name": "ch2",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Chapter Two: Thornbury"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The road to Thornbury ran south out of the foothills between hedgerows, and at noon there was no shade on it at all, which suited one of them."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad walked in the middle of the road with his hood down, talking. Ixë walked beside him, unseen, answering. A farmer mending a gate watched a young man in a blue cloak hold an animated conversation with the empty air, nodding, laughing once, and then the farmer crossed himself in the old way, the way of the Light, before he remembered that was a burning offence now, and turned it into scratching his ear."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“You’ll get us noticed,” said Ixë."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“I’ll get *me* noticed,” said Eyrad. “A madman who talks to himself. Nobody hunts madmen. They hunt Elders.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Are you one?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad did not answer that, which was an answer of a kind."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The mark on Ixë’s palm had not faded. It was a star of seven points, small as a coin, and it was not quite a scar and not quite a burn. It lay quiet most of the time. It stung when the wind turned and brought him the smell of a shepherd boy on the hill, and it burned, really burned, when he let himself imagine the boy’s throat."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“What is this?” he asked, holding it up, forgetting that Eyrad could not see the hand any more than the farmer could."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad reached into the air, found Ixë’s wrist by touch on the first try, and turned the palm toward the sun as if he could read it. “It isn’t a chain,” he said. “It’s a lantern. It shows you where you’re standing. What you do about where you’re standing is yours.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“And if I fed on you tonight?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Then it would be very bright,” said Eyrad, “for a little while.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "In the noon light Ixë saw something he had not seen in the den: a few white hairs at Eyrad’s temple, and lines at the corners of his eyes, too deep for a young man of twenty. Eyrad saw him seeing."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“The Light isn’t free,” he said. “It’s paid for in years. I spent a few in your mountain.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“How many have you got?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Enough,” said Eyrad, “if I’m careful,” in the tone of a man who had never been careful in his life."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He told Ixë about the Paths as they walked, the way one might teach a child the names of trees. The Path of Air had begun as a brotherhood of physicians, he said, men who studied breath because breath was life. They learned to slow a fevered heart by slowing a man’s breathing; then to put a man to sleep by it; then to take it out of him altogether and hold it in their hand. *Spirokinesis*, they called the last art, the moving of breath, and they wrote it down in grammars bound in white calf. Ixë thought of the book in his satchel, taken off a dead vampire who had taken it off a dead Inquisitor, and said nothing."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“They burn us because fire eats air,” said Eyrad, “and they drown us because water smothers it. They kill with the things they’re afraid of. That’s how you can always tell what a man fears: watch how he kills.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“And the Light?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“The Light doesn’t kill,” said Eyrad, and then, after a pause long enough that Ixë thought he would not go on, “usually.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "At dusk Ixë went into a beech wood to hunt, and there in the green shade he came half-visible, a man-shaped smudge, like breath on glass, and the deer smelled him and ran. He caught a hare instead. He fed. When he came back to the road Eyrad was watching the place where the wood met the field, not to judge, only to wait, and Ixë found he was annoyed at not being judged. He had been ready to be."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Thornbury was a market town with a stone cross in its square and a millpond behind the church, and they came into it the next day at noon to find the whole town gathered at the pond."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The red cloaks were there. Five of them, in white robes under red mantles, and a sixth in front: a woman with grey eyes and a hooked staff, whom the crowd called Sister Agathe and would not look at directly. A ducking stool hung out over the green water on its long beam. In it, strapped at the wrists and waist, was a woman of perhaps sixty in a widow’s black."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Goody Ennis,” said someone in the crowd, very low. “They found a lamp in her house. One of the old lamps.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Sister Agathe was speaking. Her voice did something to the air of the square: it became thick, slow, easy to breathe in and hard to breathe out, and the crowd swayed a little where it stood, and Ixë felt the push of it go past him like a wave past a post. *Hypnosis. Trifling.* He watched the faces around him go slack and agreeable."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“She will be asked three times,” said Sister Agathe. “If the water gives her back, she is the Light’s, and she will burn. If the water keeps her, she was innocent, and her soul goes to the wind.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“That isn’t a trial,” said Ixë, aloud, and nobody heard him, because nobody could, except one."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad’s hand found his sleeve. It did not grip. It rested."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“We do nothing,” said Eyrad."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“You could stop this with one hand.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“I could. And then every Inquisitor from here to the sea would know that one of the Light’s hands still holds a light. They would know which road it walked on. And the Archprior would send a single rider ahead of us to the place where the prince is kept, and the prince would be dead by tomorrow’s noon. One woman, Littlejon. Or the kingdom.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The beam creaked. The stool went down into the green water and the widow went with it, and the pond closed over her black dress like a mouth."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“You told me there would be adventure,” said Ixë."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“I told you there would be choices,” said Eyrad. His voice did not shake, but the hand on Ixë’s sleeve did. “I asked for your obedience. This is what it’s for. Not for the easy days. For this one.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The beam rose. Goody Ennis came up out of the water streaming and choking, and before she had breath enough to scream she began, astonishingly, to sing: the old evening hymn of the Light, which Ixë had not heard in longer than he could remember and found, to his surprise, that he still knew the words to."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Sister Agathe raised her hand for the second dip."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Ixë’s satchel was on his shoulder. The ropes on the stool were hemp. The sun was full on the pond, and he would be invisible every step of the way."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "obey_at_thornbury",
+          "label": "Stay at Eyrad’s side",
+          "target": "ch3",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": []
+        },
+        {
+          "type": "link",
+          "id": "free_the_widow",
+          "label": "Free her, unseen",
+          "target": "ch2_alt",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": [],
+          "inquest": {
+            "stands_in_for": "obey_at_thornbury",
+            "by": "inker"
+          }
+        },
+        {
+          "type": "link",
+          "id": "shut_your_eyes",
+          "label": "Shut your eyes",
+          "target": "ch3",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "name": "ch2_alt",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He took his sleeve out of Eyrad’s hand."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Nobody saw him cross the green. Nobody saw him walk out along the beam of the ducking stool, light-footed, a weight the beam felt and the crowd could not explain; the timber groaned and dipped and a child pointed. He knelt above the stool with the sun on his back like a burning coat and cut the ropes at her wrists with the edge of an arrowhead, and the widow, half-drowned, felt hands she could not see and stopped singing."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Don’t scream,” Ixë said in her ear. “Hold the beam. Climb.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "She held the beam. She climbed."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "To the crowd it looked like this: the stool swung up out of the water by itself, the ropes fell away from the widow by themselves, and an old woman in sodden black clambered along a beam toward the bank as if something were lifting her by the elbows. Someone shouted *miracle.* Someone else took it up. Sister Agathe turned in a slow circle in the middle of the square, her grey eyes searching the empty sunlight."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Show yourself,” she said, and put the whole weight of her voice into it, and the air went thick as honey, and half the town sat down where they stood."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "It slid off him. It always had."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He walked up behind her, close enough to smell the lamp oil on her gloves, and said into her ear, softly, in the voice that had been his only company for longer than he could count: “Not today.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "She struck at the voice with her staff and hit nothing. By the time her people had their wits back, Goody Ennis was gone through the churchyard and over the wall, and so was Eyrad."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He found them that evening in a barn two miles south, the widow wrapped in horse blankets and shaking, Eyrad sitting by the door with his back very straight."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Do you know what you’ve told them?” Eyrad said, without turning his head. “That something walks with me that can’t be seen. They’ll put hounds on the gates of every city in the south. They’ll put a guard on the prince’s door.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“They don’t know where the prince’s door is,” said Ixë. “You told me that yourself.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“They will start looking.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The widow, who had been listening, said: “You’re looking for Mother Maud.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "They both turned."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“The red cloaks were asking after her,” said Goody Ennis. “In the fens below Hollin, past the drowned church. They said they’d go there after me.” She looked at the place where Ixë’s voice had come from. “I don’t know what you are,” she said. “But you’d better get there first.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Eyrad was quiet for a long time. Then he said, to the empty air beside him: “Thank you for her. Don’t do it again.”"
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "on_to_the_fens",
+          "label": "Go on to the fens",
+          "target": "ch3",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [
+            {
+              "do": "set",
+              "target": "widow_freed",
+              "value": true,
+              "when": null
+            }
+          ],
+          "ends_turn": false,
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "name": "ch3",
+      "tags": [
+        "finale"
+      ],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Chapter Three: Mother Maud"
+            ]
+          ]
+        },
+        {
+          "type": "modifier",
+          "parts": [
+            {
+              "name": "if",
+              "when": {
+                "not": "widow_freed"
+              }
+            }
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Goody Ennis came up out of the water the second time still singing, and the third time she did not come up singing, and they took her down off the stool and laid her on the grass, and the crowd went home to its dinner. Sister Agathe wiped her gloves on a cloth. As she passed Eyrad in the street she said to her clerk, quite clearly, “The fen-mother next. Below Hollin, past the drowned church,” and did not notice the young man in blue, because he was only a madman."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "Ixë did not speak for the whole of the next day. That night, in a hedge-bottom, he heard Eyrad weep, once, very quietly, thinking no one was awake. Ixë heard everything. He said nothing about that, either."
+            ]
+          ]
+        },
+        {
+          "type": "modifier",
+          "parts": [
+            {
+              "name": "end"
+            }
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“They’ll be a day behind us,” said Eyrad. “Maybe less.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "They found the drowned church by its bell tower, standing out of the water like a finger. The rest of the village was under the fen. Beyond it, on a hummock of dry ground, there was a hut of reeds and tar and a woman sitting in its doorway with her hands folded, as though she had been expecting guests for a long time and had begun to find it tedious."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "She was very old. Her eyes were the white of cooked egg. She lifted her face as they came up the path and breathed in through her nose, slowly, the way a vintner breathes over a cup."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Eyrad,” she said. “You’ve grown. And you’ve brought me a Daywalker. How thoughtful. I haven’t smelled one since I was a novice, and that was a very long time ago.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Reverend Mother,” said Eyrad, and knelt."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“Get up, boy, the ground’s wet. I’m not reverend anything now. A baron has my abbey for his hounds, and my Sisters are scattered from here to the sea. I’m mother to nothing now but frogs.” She turned her blind eyes to the place where Ixë stood. “Come here, you. Let me have a look at you.”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He went, because there was nothing in her voice that it was possible to refuse. She put out a hand, and found his face as easily as Eyrad had found his wrist, and held his jaw the way a farrier holds a horse’s. Her fingers were cold and very strong."
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "“They drowned me three times, you know,” said Mother Maud conversationally. “Three different Inquisitors. The water doesn’t want me. I’m too bony.” Her thumb pressed on his lip until it found the point of a fang. “Hm. Tell me, Daywalker. What was your First Blood?”"
+            ]
+          ]
+        },
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "He opened his mouth to say *I don’t remember*, and found that was not true."
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}
