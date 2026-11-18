@@ -1,6 +1,8 @@
 defmodule InklinksWeb.Router do
   use InklinksWeb, :router
 
+  import Dstar.Router
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -17,5 +19,7 @@ defmodule InklinksWeb.Router do
     pipe_through :browser
 
     get "/", LibraryController, :index
+    post "/inklinks/:inklink_id/readings", ReadingController, :create
+    dstar("/readings/:id", ReadingPage)
   end
 end
