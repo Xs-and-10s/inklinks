@@ -1,25 +1,30 @@
 defmodule InklinksWeb.ReadingPage do
   @moduledoc """
-  The reader: one Nib at a time, its Links, and Inquests (flow D).
+  The reader: one Nib at a time, its offered Links, and Inquests (flow D).
 
   `GET /readings/:id` renders the page. Everything else is a Datastar event,
   `POST /readings/:id/_event/<name>`, answered with SSE patches:
 
   | Event | Does |
   |---|---|
-  | `take:<link>` | takes a canon Link; the next Nib replaces `#nib` in a View Transition |
+  | `take:<link>` | takes an offered Link; the next Nib replaces `#nib` in a View Transition |
   | `inquest` | opens the box: "What would you change here?" |
   | `inquest-answer`, `inquest-skip` | answers it: noted, or Inquest mode |
-  | `look:<link>`, `unlook:<link>` | flips a canon Link to its fork and back (pointer or keyboard focus) |
-  | `tap:<link>` | a click or tap in Inquest mode: flips, or asks what they wanted instead |
-  | `take-fork:<fork>` | takes a fork that was flipped to; spends one Inquest |
+  | `look:<at>:<link>`, `unlook:<at>:<link>` | opens an offered Link into its group of forks, and closes it (pointer or keyboard focus) |
+  | `tap:<at>:<link>` | a click or tap in Inquest mode: opens the group, or asks what they wanted instead |
+  | `take-fork:<fork>` | takes a fork from an open group; spends one Inquest |
   | `wanted-answer`, `wanted-skip` | answers "what did you want instead", then leaves Inquest mode |
   | `leave` | leaves Inquest mode (also Escape) |
 
-  Forks are never in the page until a Linker flips to one: the server
-  renders canon Links only, and a fork's label arrives in the patch that
-  answers its flip. Announcements go to one `role=status` region outside
-  the Nib, so it survives every patch.
+  `<at>` is `here` for the current Nib, or the version of an earlier visit
+  whose forks may be asked for from here (`Reading.places/1`); the page
+  shows those as "Back when you chose …".
+
+  One group is open at a time: opening one closes any other. Forks are
+  never in the page until a Linker opens a group: the server renders offered
+  Links only, and the forks' labels arrive in the patch that answers the
+  flip. Announcements go to one `role=status` region outside the Nib, so it
+  survives every patch.
 
   A reading belongs to its reader. `mount/2` checks on GET and `authorize/2`
   before every event, because dstar runs them on separate routes.
@@ -28,7 +33,7 @@ defmodule InklinksWeb.ReadingPage do
 
   import InklinksWeb.Ink
 
-  alias Inklinks.{Inquest, Reading}
+  alias Inklinks.{Engine, Inquest, Reading}
   alias InklinksWeb.Layouts
 
   # -- GET -----------------------------------------------------------------------
@@ -77,30 +82,32 @@ defmodule InklinksWeb.ReadingPage do
   end
 
   defp run("inquest", reading, _) do
-    with {:ok, reading} <- Inquest.open(reading) do
-      {:ok, [{:dialogs, reading}]}
-    end
+    with {:ok, reading} <- Inquest.open(reading), do: {:ok, [{:dialogs, reading}]}
   end
 
   defp run("inquest-answer", reading, signals), do: answer(reading, signals["wanted"])
   defp run("inquest-skip", reading, _), do: answer(reading, nil)
 
-  defp run("look:" <> link, reading, _) do
-    with {:ok, reading, found} <- Inquest.look(reading, link),
-         do: {:ok, flipped(reading, link, found)}
+  defp run("look:" <> target, reading, _) do
+    with {:ok, at, link} <- target(target),
+         {:ok, reading, found} <- Inquest.look(reading, link, at) do
+      {:ok, opened(reading, at, link, found)}
+    end
   end
 
-  defp run("unlook:" <> link, reading, _) do
-    if reading.inquest == :mode,
-      do: {:ok, [{:link, reading, link, :default}, {:announce, ""}]},
-      else: {:error, :not_now}
+  defp run("unlook:" <> target, %Reading{inquest: :mode} = reading, _) do
+    with {:ok, at, link} <- target(target) do
+      {:ok, [{:links, reading, {at, link, :closed}}, {:announce, ""}]}
+    end
   end
 
-  defp run("tap:" <> link, reading, _) do
-    case Inquest.want(reading, link) do
-      {:ok, reading, :asked} -> {:ok, [{:dialogs, reading}]}
-      {:ok, reading, found} -> {:ok, flipped(reading, link, found)}
-      error -> error
+  defp run("tap:" <> target, reading, _) do
+    with {:ok, at, link} <- target(target) do
+      case Inquest.want(reading, link, at) do
+        {:ok, reading, :asked} -> {:ok, [{:dialogs, reading}]}
+        {:ok, reading, found} -> {:ok, opened(reading, at, link, found)}
+        error -> error
+      end
     end
   end
 
@@ -124,6 +131,23 @@ defmodule InklinksWeb.ReadingPage do
 
   defp run(_event, _reading, _), do: {:error, :unknown_event}
 
+  # `here:obey_at_thornbury` or `2:obey_at_thornbury`. A Link id may itself
+  # hold colons, so only the first one splits.
+  defp target(target) do
+    case String.split(target, ":", parts: 2) do
+      ["here", link] ->
+        {:ok, nil, link}
+
+      [version, link] ->
+        with {v, ""} <- Integer.parse(version),
+             do: {:ok, v, link},
+             else: (_ -> {:error, :bad_target})
+
+      _ ->
+        {:error, :bad_target}
+    end
+  end
+
   defp answer(reading, text) do
     with {:ok, reading, outcome} <- Inquest.answer(reading, text) do
       said =
@@ -132,8 +156,8 @@ defmodule InklinksWeb.ReadingPage do
             "Noted. The Inker will read this."
 
           :inquest_mode ->
-            "Inquest mode. Point at a Link, or move to it with Tab, to see whether another " <>
-              "path hides behind it. Escape leaves Inquest mode."
+            "Inquest mode. Point at a Link, or move to it with Tab, to see whether other " <>
+              "paths hide behind it. Escape leaves Inquest mode."
         end
 
       {:ok, [:close_dialogs, :clear_text, {:nib, reading, :first_link}, {:announce, said}]}
@@ -152,17 +176,30 @@ defmodule InklinksWeb.ReadingPage do
     end
   end
 
-  defp flipped(reading, link, {:fork, fork}) do
+  # Opening one group closes every other.
+  defp opened(reading, at, link, {:forks, forks}) do
+    count = if length(forks) == 1, do: "Another path", else: "#{length(forks)} other paths"
+    names = Enum.map_join(forks, "; ", &Reading.plain(&1.label))
+
     said =
-      "Another path: #{Reading.plain(fork.label)}. Take it to spend one Inquest " <>
+      "#{back_when(reading, at)}#{count}: #{names}. Take one to spend one Inquest " <>
         "(#{inquests(Reading.remaining(reading))} left)."
 
-    [{:link, reading, link, {:fork, fork}}, {:announce, said}]
+    [{:links, reading, {at, link, {:forks, forks}}}, {:announce, said}]
   end
 
-  # No announcement: the Link now says so itself, in its own label, so a
-  # quick Tab across several Links cannot leave a stale message behind.
-  defp flipped(reading, link, :no_fork), do: [{:link, reading, link, :plain}]
+  # No announcement: the Link says so itself, in its own label, so a quick
+  # Tab across several Links cannot leave a stale message behind.
+  defp opened(reading, at, link, :no_forks), do: [{:links, reading, {at, link, :no_forks}}]
+
+  defp back_when(_reading, nil), do: ""
+
+  defp back_when(reading, at) do
+    case Enum.find(Reading.places(reading), &(&1.at == at)) do
+      %{chose: chose} when is_binary(chose) -> "Back when you chose “#{chose}”: "
+      _ -> "Earlier: "
+    end
+  end
 
   defp inquests(1), do: "1 Inquest"
   defp inquests(n), do: "#{n} Inquests"
@@ -176,16 +213,23 @@ defmodule InklinksWeb.ReadingPage do
     )
   end
 
-  defp apply_patch({:link, reading, link, state}, conn) do
-    view = Reading.view(reading)
+  # Every offered Link in every place, re-rendered: the one named in its new
+  # state, all others closed. That is how opening one group closes another.
+  defp apply_patch({:links, reading, {at, link, state}}, conn) do
+    for place <- places(reading),
+        {offered, i} <- Enum.with_index(place.links),
+        reduce: conn do
+      conn ->
+        mine = place.at == at and offered.id == link
+        state = if mine, do: state, else: :closed
 
-    case Enum.find_index(view.links, &(&1.id == link)) do
-      nil ->
-        conn
-
-      i ->
-        assigns = [link: Enum.at(view.links, i), index: i, mode: true, state: state]
-        patch(conn, &link_item/1, assigns, use_view_transitions: true)
+        # Only the Link that changed animates.
+        patch(
+          conn,
+          &link_item/1,
+          [link: offered, index: i, at: place.at, mode: true, state: state],
+          use_view_transitions: mine
+        )
     end
   end
 
@@ -196,9 +240,16 @@ defmodule InklinksWeb.ReadingPage do
 
   defp resync(conn, reading) do
     {:ok, reading} = Reading.load(reading.id, reading.reader_id)
+    Enum.reduce([{:nib, reading, nil}, {:dialogs, reading}, :clear_text], conn, &apply_patch/2)
+  end
 
-    [{:nib, reading, nil}, {:dialogs, reading}, :clear_text]
-    |> Enum.reduce(conn, &apply_patch/2)
+  # The places an Inquest looks, each with its offered Links as the Linker
+  # saw them there.
+  defp places(reading) do
+    for place <- Reading.places(reading) do
+      view = Engine.call(:view, [reading.loaded.story, place.state])
+      Map.put(place, :links, view.links)
+    end
   end
 
   # -- components ----------------------------------------------------------------
@@ -216,6 +267,7 @@ defmodule InklinksWeb.ReadingPage do
       assign(assigns,
         view: view,
         mode: mode,
+        earlier: if(mode, do: reading |> places() |> tl(), else: []),
         offer_inquest: reading.budget > 0 and not mode and not view.done,
         remaining: Reading.remaining(reading)
       )
@@ -235,7 +287,7 @@ defmodule InklinksWeb.ReadingPage do
 
       <p :if={@mode} role="note">
         <b>Inquest mode.</b>
-        Point at a Link, or move to it with Tab, to see whether another path hides behind it.
+        Point at a Link, or move to it with Tab, to see whether other paths hide behind it.
         <button type="button" data-on:click={event("leave")}>Leave Inquest mode</button>
       </p>
 
@@ -245,8 +297,25 @@ defmodule InklinksWeb.ReadingPage do
             :for={{link, i} <- Enum.with_index(@view.links)}
             link={link}
             index={i}
+            at={nil}
             mode={@mode}
-            state={:default}
+            state={:closed}
+          />
+        </ul>
+      </nav>
+
+      <nav :for={place <- @earlier} aria-labelledby={"earlier-#{place.at}"} data-earlier>
+        <h2 id={"earlier-#{place.at}"}>
+          {if place.chose, do: "Back when you chose “#{place.chose}”", else: "Earlier"}
+        </h2>
+        <ul>
+          <.link_item
+            :for={{link, i} <- Enum.with_index(place.links)}
+            link={link}
+            index={i}
+            at={place.at}
+            mode={true}
+            state={:closed}
           />
         </ul>
       </nav>
@@ -271,18 +340,24 @@ defmodule InklinksWeb.ReadingPage do
 
   attr :link, :map, required: true
   attr :index, :integer, required: true
+  attr :at, :any, required: true, doc: "nil for the current Nib, or an earlier visit's version"
   attr :mode, :boolean, required: true
-  attr :state, :any, required: true, doc: ":default, :plain, or {:fork, fork}"
+  attr :state, :any, required: true, doc: ":closed, :no_forks, or {:forks, forks}"
 
   @doc """
-  One Link. Outside Inquest mode it takes the Link. In Inquest mode it flips:
-  on mouse hover or keyboard focus (`look`), or on a first tap; a click or
-  Enter on a flipped Link takes the fork. Touch and mouse focus do not count
-  as looking, so a tap is a tap.
+  One offered Link. Outside Inquest mode it takes the Link. In Inquest mode
+  it opens into the group of forks that stand in for it, in the Inker's
+  order: on mouse hover or keyboard focus (`look`), or on a first tap. The
+  group stays open while the pointer or focus is inside it; each fork is a
+  button that takes it. Touch and mouse focus do not count as looking, so a
+  tap is a tap.
+
+  The open group's first fork button takes the place of the Link's own
+  button, so a morph keeps keyboard focus where it was.
   """
   def link_item(%{mode: false} = assigns) do
     ~H"""
-    <li id={"link-#{@index}"}>
+    <li id={"link-here-#{@index}"}>
       <button type="button" data-on:click={event("take:" <> @link.id)}>
         <.parts parts={@link.label} />
       </button>
@@ -290,43 +365,50 @@ defmodule InklinksWeb.ReadingPage do
     """
   end
 
-  def link_item(%{state: {:fork, fork}} = assigns) do
-    assigns = assign(assigns, fork: fork)
+  def link_item(%{state: {:forks, forks}} = assigns) do
+    assigns = assign(assigns, forks: forks, target: target_of(assigns))
 
     ~H"""
-    <li id={"link-#{@index}"} data-flipped>
-      <button
-        type="button"
-        data-on:click={event("take-fork:" <> @fork.id)}
-        data-on:pointerleave={"evt.pointerType === 'mouse' && " <> event("unlook:" <> @link.id)}
-        data-on:blur={event("unlook:" <> @link.id)}
-      >
-        <.parts parts={@fork.label} />
-        <small>instead of “<.parts parts={@link.label} />”</small>
+    <li
+      id={"link-#{place_key(@at)}-#{@index}"}
+      data-open
+      data-on:pointerleave={"evt.pointerType === 'mouse' && " <> event("unlook:" <> @target)}
+      data-on:focusout={"!el.contains(evt.relatedTarget) && " <> event("unlook:" <> @target)}
+    >
+      <button :for={fork <- @forks} type="button" data-on:click={event("take-fork:" <> fork.id)}>
+        <.parts parts={fork.label} />
       </button>
+      <small>instead of “<.parts parts={@link.label} />”</small>
     </li>
     """
   end
 
   def link_item(assigns) do
+    assigns = assign(assigns, target: target_of(assigns))
+
     ~H"""
-    <li id={"link-#{@index}"} data-plain={@state == :plain}>
+    <li id={"link-#{place_key(@at)}-#{@index}"}>
       <button
         type="button"
-        data-on:click={event("tap:" <> @link.id)}
+        data-on:click={event("tap:" <> @target)}
         data-on:pointerenter={
-          @state == :default && "evt.pointerType === 'mouse' && " <> event("look:" <> @link.id)
+          @state == :closed && "evt.pointerType === 'mouse' && " <> event("look:" <> @target)
         }
         data-on:focus={
-          @state == :default && "el.matches(':focus-visible') && " <> event("look:" <> @link.id)
+          @state == :closed && "el.matches(':focus-visible') && " <> event("look:" <> @target)
         }
       >
         <.parts parts={@link.label} />
-        <small :if={@state == :plain}>no other path here</small>
+        <small :if={@state == :no_forks}>no other path here</small>
       </button>
     </li>
     """
   end
+
+  defp target_of(assigns), do: "#{place_key(assigns.at)}:#{assigns.link.id}"
+
+  defp place_key(nil), do: "here"
+  defp place_key(version), do: Integer.to_string(version)
 
   attr :text, :string, required: true
 
@@ -353,9 +435,10 @@ defmodule InklinksWeb.ReadingPage do
     """
   end
 
-  def dialogs(%{reading: %Reading{inquest: {:wanting, canon}}} = assigns) do
-    label = Enum.find(Reading.view(assigns.reading).links, &(&1.id == canon)).label
-    assigns = assign(assigns, label: Reading.plain(label))
+  def dialogs(%{reading: %Reading{inquest: {:wanting, link, at}} = reading} = assigns) do
+    place = Enum.find(places(reading), &(&1.at == at))
+    label = place && Enum.find(place.links, &(&1.id == link))
+    assigns = assign(assigns, label: if(label, do: Reading.plain(label.label), else: link))
 
     ~H"""
     <div id="dialogs">
