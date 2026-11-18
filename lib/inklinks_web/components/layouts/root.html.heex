@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{if assigns[:page_title], do: "#{@page_title} · Inklinks", else: "Inklinks"}</title>
+    <link rel="stylesheet" href={~p"/assets/app.css"} />
+    <script type="module" src={~p"/vendor/datastar-rocket-1.0.5.js"}>
+    </script>
+  </head>
+  <body data-signals:csrf={Dstar.js_value(get_csrf_token())}>
+    {@inner_content}
+  </body>
+</html>

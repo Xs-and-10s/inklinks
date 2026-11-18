@@ -1,0 +1,22 @@
+Inklinks
+Copyright (C) 2026 Mark Manley
+
+The source code in this repository is free software: you can redistribute
+it and/or modify it under the terms of the GNU Affero General Public License
+as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. See LICENSE.
+
+Story content is not covered by that license:
+
+  * priv/inklinks/ex1-*.json, ex2-*.json and ex3-*.json are the compiled IR
+    of Examples 1 to 3, copied from inkjot-compiler-rust at tag v0.5.0, and
+    carry that repository's license. ex3's last passage has a `finale` tag
+    added here (see docs/compiler-followups.md).
+
+  * Any text from "Littlejon" (Example 4), in priv/inklinks/ or under test/,
+    is Copyright (C) 2026 Mark Manley. All rights reserved.
+
+Third-party files:
+
+  * priv/static/vendor/datastar-rocket-1.0.5.js and .d.ts: Datastar 1.0.5
+    with Rocket, Copyright (C) Star Federation, MIT License.

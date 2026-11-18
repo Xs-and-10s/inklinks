@@ -1,0 +1,27 @@
+<Layouts.app>
+  <h1>Library</h1>
+
+  <p :if={@inklinks == []}>No Inklinks yet.</p>
+
+  <ul :if={@inklinks != []} aria-label="Inklinks">
+    <li :for={inklink <- @inklinks}>
+      <article aria-labelledby={"inklink-#{inklink.id}"}>
+        <h2 id={"inklink-#{inklink.id}"}>{inklink.title}</h2>
+        <dl>
+          <div>
+            <dt>Kind</dt>
+            <dd>{describe(inklink.kind)}</dd>
+          </div>
+          <div>
+            <dt>Mode</dt>
+            <dd>{describe(inklink.mode)}</dd>
+          </div>
+          <div :if={inklink.inquests > 0}>
+            <dt>Inquests</dt>
+            <dd>{inklink.inquests}</dd>
+          </div>
+        </dl>
+      </article>
+    </li>
+  </ul>
+</Layouts.app>
