@@ -15,6 +15,7 @@ defmodule InklinksWeb.ReadingPage do
   | `take-fork:<fork>` | takes a fork from an open group; spends one Inquest |
   | `wanted-answer`, `wanted-skip` | answers "what did you want instead", then leaves Inquest mode |
   | `leave` | leaves Inquest mode (also Escape) |
+  | `rate`, `rating-dismiss` | answers the ratings box after a finale, or puts it off |
 
   `<at>` is `here` for the current Nib, or the version of an earlier visit
   whose forks may be asked for from here (`Reading.places/1`); the page
@@ -33,7 +34,7 @@ defmodule InklinksWeb.ReadingPage do
 
   import InklinksWeb.Ink
 
-  alias Inklinks.{Engine, Inquest, Reading}
+  alias Inklinks.{Engine, Inquest, Rating, Reading}
   alias InklinksWeb.Layouts
 
   # -- GET -----------------------------------------------------------------------
@@ -77,7 +78,7 @@ defmodule InklinksWeb.ReadingPage do
 
   defp run("take:" <> link, reading, _) do
     with {:ok, reading} <- Reading.take(reading, link) do
-      {:ok, [:close_dialogs, {:nib, reading, :article}, {:announce, ""}]}
+      {:ok, [{:dialogs, reading}, {:nib, reading, :article}, {:announce, ""}]}
     end
   end
 
@@ -126,6 +127,27 @@ defmodule InklinksWeb.ReadingPage do
   defp run("leave", reading, _) do
     with {:ok, reading} <- Inquest.leave(reading) do
       {:ok, [{:nib, reading, :first_link}, {:announce, "Inquest mode off."}]}
+    end
+  end
+
+  defp run("rate", reading, signals) do
+    answers = %{
+      "ending" => signals["ratingEnding"],
+      "inklink" => signals["ratingInklink"],
+      "path" => signals["ratingPath"],
+      "change_at" => signals["changeAt"],
+      "change_text" => signals["changeText"]
+    }
+
+    with {:ok, reading} <- Rating.answer(reading, answers) do
+      said = if reading.rating == :done, do: "Thank you. The Inker will read this.", else: ""
+      {:ok, [:close_dialogs, :clear_rating, {:nib, reading, nil}, {:announce, said}]}
+    end
+  end
+
+  defp run("rating-dismiss", reading, _) do
+    with {:ok, reading} <- Rating.dismiss(reading) do
+      {:ok, [:close_dialogs, :clear_rating, {:nib, reading, nil}, {:announce, ""}]}
     end
   end
 
@@ -241,6 +263,16 @@ defmodule InklinksWeb.ReadingPage do
   defp apply_patch({:announce, text}, conn), do: patch(conn, &announce/1, text: text)
   defp apply_patch(:clear_text, conn), do: patch_signals(conn, %{wanted: ""})
 
+  defp apply_patch(:clear_rating, conn) do
+    patch_signals(conn, %{
+      ratingEnding: "",
+      ratingInklink: "",
+      ratingPath: "",
+      changeAt: "",
+      changeText: ""
+    })
+  end
+
   defp resync(conn, reading) do
     {:ok, reading} = Reading.load(reading.id, reading.reader_id)
     Enum.reduce([{:nib, reading, nil}, {:dialogs, reading}, :clear_text], conn, &apply_patch/2)
@@ -329,6 +361,13 @@ defmodule InklinksWeb.ReadingPage do
         <small>{inquests(@remaining)} left</small>
       </p>
 
+      <p
+        :if={@reading.rating == :asking}
+        data-rating-due
+        data-on-intersect__once="setTimeout(() => document.getElementById('box')?.showModal(), 4000)"
+      >
+      </p>
+
       <footer :if={@view.done}>
         <p>The end.</p>
         <form method="post" action={"/inklinks/#{@reading.inklink_id}/readings"}>
@@ -336,6 +375,13 @@ defmodule InklinksWeb.ReadingPage do
           <input type="hidden" name="again" value="true" />
           <button>Read again</button>
         </form>
+        <button
+          :if={@reading.rating == :asking}
+          type="button"
+          data-on:click="document.getElementById('box')?.showModal()"
+        >
+          Rate this ending
+        </button>
         <a href="/">Back to the library</a>
       </footer>
     </article>
@@ -456,9 +502,74 @@ defmodule InklinksWeb.ReadingPage do
     """
   end
 
+  # The ratings box is rendered closed. It opens a few seconds after the end
+  # of the finale (`data-rating-due`) scrolls into view, so it never covers
+  # the ending before it is read, or at once from "Rate this ending".
+  def dialogs(%{reading: %Reading{rating: :asking} = reading} = assigns) do
+    assigns = assign(assigns, path: reading.forked, moments: Rating.moments(reading))
+
+    ~H"""
+    <div id="dialogs">
+      <dialog
+        id="box"
+        aria-labelledby="box-title"
+        aria-describedby="box-hint"
+        data-signals="{ratingEnding: '', ratingInklink: '', ratingPath: '', changeAt: '', changeText: ''}"
+        data-on:cancel__prevent={event("rating-dismiss")}
+      >
+        <form data-on:submit__prevent={event("rate")}>
+          <h2 id="box-title">How was it?</h2>
+          <p id="box-hint">All optional. 1 is “not for me”, 5 is “loved it”.</p>
+
+          <.scale name="ending" signal="rating-ending" legend="The ending" />
+          <.scale name="inklink" signal="rating-inklink" legend="The Inklink overall" />
+          <.scale :if={@path} name="path" signal="rating-path" legend="Your path, off the canon" />
+
+          <details :if={@moments != []}>
+            <summary>More…</summary>
+            <fieldset>
+              <legend>A moment you would change</legend>
+              <label :for={moment <- @moments}>
+                <input type="radio" name="change" value={moment.at} data-bind:change-at />
+                Where you chose “{moment.chose}”
+              </label>
+            </fieldset>
+            <label>
+              What would you change? <textarea data-bind:change-text rows="3" maxlength="2000"></textarea>
+            </label>
+          </details>
+
+          <p>
+            <button type="submit">Done</button>
+            <button type="button" data-on:click={event("rating-dismiss")}>Not now</button>
+          </p>
+        </form>
+      </dialog>
+    </div>
+    """
+  end
+
   def dialogs(assigns) do
     ~H"""
     <div id="dialogs"></div>
+    """
+  end
+
+  attr :name, :string, required: true
+  attr :signal, :string, required: true
+  attr :legend, :string, required: true
+
+  # One rating: five radio buttons in a fieldset, so arrow keys move along
+  # the scale and a screen reader hears "The ending, 3 of 5".
+  defp scale(assigns) do
+    ~H"""
+    <fieldset data-scale>
+      <legend>{@legend}</legend>
+      <label :for={n <- 1..5}>
+        <input type="radio" name={@name} value={n} {%{"data-bind:#{@signal}" => true}} />
+        <span>{n}</span>
+      </label>
+    </fieldset>
     """
   end
 

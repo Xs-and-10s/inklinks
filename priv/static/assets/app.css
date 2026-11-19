@@ -428,6 +428,79 @@
   }
 }
 
+@layer components {
+  /* The ratings box: fieldsets of five, drawn as a row of numbered chips.
+     The radios stay real (keyboard, screen readers); only their look
+     changes. */
+  dialog#box {
+    & fieldset {
+      border: 0;
+      margin: 0;
+      padding: 0;
+
+      & legend {
+        font-weight: 600;
+        margin-block-end: var(--space-xs);
+      }
+    }
+
+    & fieldset[data-scale] {
+      & label {
+        display: inline-block;
+        margin-inline-end: var(--space-xs);
+      }
+
+      & input {
+        opacity: 0;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      & span {
+        align-items: center;
+        border: 1px solid var(--rule);
+        border-radius: 50%;
+        cursor: pointer;
+        display: inline-flex;
+        block-size: 2.4rem;
+        inline-size: 2.4rem;
+        justify-content: center;
+      }
+
+      & input:checked + span {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--paper);
+      }
+
+      & input:focus-visible + span {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+    }
+
+    & details {
+      & summary {
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      & > * + * {
+        margin-block-start: var(--space-s);
+      }
+
+      & fieldset label {
+        display: block;
+      }
+
+      & label:has(textarea) {
+        display: grid;
+        gap: var(--space-xs);
+      }
+    }
+  }
+}
+
 /*
   A flip is a View Transition too: the Link's box cross-fades from canon to
   fork (each Link names itself with match-element; where that is not
