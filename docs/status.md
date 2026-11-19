@@ -18,9 +18,9 @@ the real engine.
 |---|---|---|---|
 | 1 | `m1-skeleton` | Phoenix without LiveView or a JS build; the event log and its append-only triggers; the reader id; the `Inklinks.Engine` behaviour; the catalog and library page | done, #1 |
 | 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | done, #2 |
-| 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | done |
-| 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending | next |
-| 5 | `m5-handoff` | `events.md`, `engine-calls.md`, `ir3-requests.md` finished for the compiler chat | |
+| 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | done, #3 |
+| 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending; Inker insights from the log | done |
+| 5 | `m5-handoff` | `events.md`, `engine-calls.md`, `ir3-requests.md` finished for the compiler chat | next |
 
 ## Decisions (18 Nov 2026)
 
@@ -83,6 +83,22 @@ Decided while building it (easy to change):
 - **The open group's first fork takes the place of the Link's own button**,
   so keyboard focus stays put when the group opens; Tab walks the group,
   and leaving it closes it.
+
+## Ratings, stopping, returning
+
+Decided while building milestone 4 (easy to change):
+
+- **Going back lets the Linker pick** (decided with Mark, 19 Nov): every
+  earlier visit where a fork can be taken, repeats collapsed into the
+  latest, newest first, at most three, each with how many choices it
+  undoes. Tested on "The Well", a test-only fixture in
+  `test/fixtures/inklinks/`.
+- **The ratings box waits**: it opens four seconds after the end of the
+  finale scrolls into view, or at once from "Rate this ending".
+- **Abandoned after a day** (`:abandon_after`), swept every ten minutes
+  (`:sweep_every`); a later action records `reading_resumed` first.
+- **A dismissed rating** does not stop the next reading of that ending
+  asking; a given one does.
 
 ## How to resume
 
