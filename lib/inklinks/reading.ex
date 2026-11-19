@@ -37,7 +37,18 @@ defmodule Inklinks.Reading do
     looked: %{},
     # Every Nib shown, newest first, with the engine state there: going back
     # for a fork asked from a later Nib starts from one of these.
-    nibs: []
+    nibs: [],
+    # Ratings (see Inklinks.Rating): whether the box has been asked for and
+    # answered, the last ending reached, and whether the Linker took or
+    # declined a fork (which adds "your path" to the box).
+    rating: :none,
+    ending: nil,
+    forked: false,
+    # The last event's time, and whether the reading was inferred abandoned.
+    last_at: nil,
+    abandoned: false,
+    # Versions of the Nibs the Linker has said they would change (More…).
+    wished: []
   ]
 
   @type t :: %__MODULE__{
@@ -52,7 +63,13 @@ defmodule Inklinks.Reading do
           spent: non_neg_integer(),
           inquest: :none | :asking | :mode | {:wanting, String.t(), pos_integer() | nil},
           looked: %{String.t() => %{link: String.t(), at: pos_integer() | nil}},
-          nibs: [nib_visit()]
+          nibs: [nib_visit()],
+          rating: :none | :asking | :done,
+          ending: String.t() | nil,
+          forked: boolean(),
+          last_at: DateTime.t() | nil,
+          abandoned: boolean(),
+          wished: [pos_integer()]
         }
 
   @typedoc """
@@ -99,7 +116,32 @@ defmodule Inklinks.Reading do
         }
       }
 
-      record(reading, [started | shown(view)])
+      record(reading, [started | returned(reader_id, inklink_id)] ++ shown(reading, view))
+    end
+  end
+
+  # A Linker starting again after finishing a reading of this Inklink.
+  defp returned(reader_id, inklink_id) do
+    finished =
+      from(e in Event,
+        where:
+          e.reader_id == ^reader_id and e.inklink_id == ^inklink_id and
+            e.type == "reading_finished",
+        select: e.data["ending"]
+      )
+      |> Repo.all()
+
+    if finished == [] do
+      []
+    else
+      endings = finished |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+      [
+        %{
+          type: "returned_for_another_ending",
+          data: %{"readings_finished" => length(finished), "endings_seen" => endings}
+        }
+      ]
     end
   end
 
@@ -157,6 +199,8 @@ defmodule Inklinks.Reading do
   # which forks were looked at, how many Inquests are spent. Used both when
   # replaying the log and after appending, so live and rebuilt agree.
   defp evolve(reading, %{type: type, data: data} = event) do
+    reading = %{reading | last_at: event.occurred_at}
+
     case type do
       "nib_shown" ->
         visit = %{version: version_of(event), nib: data["nib"], state: reading.state, chose: nil}
@@ -164,7 +208,9 @@ defmodule Inklinks.Reading do
 
       type when type in ["link_taken", "fork_taken"] ->
         reading =
-          if type == "fork_taken", do: %{reading | spent: reading.spent + 1}, else: reading
+          if type == "fork_taken",
+            do: %{reading | spent: reading.spent + 1, forked: true},
+            else: reading
 
         chosen(reading, data["back_to"], data["label"])
 
@@ -186,6 +232,27 @@ defmodule Inklinks.Reading do
 
       "inquest_mode_left" ->
         %{reading | inquest: :none}
+
+      "fork_declined" ->
+        %{reading | forked: true}
+
+      "ending_reached" ->
+        %{reading | ending: data["ending"]}
+
+      "rating_asked" ->
+        %{reading | rating: :asking}
+
+      type when type in ["rating_given", "rating_dismissed"] ->
+        %{reading | rating: :done}
+
+      "reading_abandoned" ->
+        %{reading | abandoned: true}
+
+      "reading_resumed" ->
+        %{reading | abandoned: false}
+
+      "change_wished" ->
+        %{reading | wished: [data["back_to"] | reading.wished]}
 
       _ ->
         reading
@@ -217,20 +284,35 @@ defmodule Inklinks.Reading do
   def state_at(reading, nil), do: reading.state
   def state_at(reading, version), do: Enum.find(reading.nibs, &(&1.version == version)).state
 
+  @max_earlier 3
+
   @doc """
   Where an Inquest can look from the current Nib: the Nib itself (`at:
-  nil`), then, for each passage whose forks may be asked for from here, the
-  latest visit to it before now (`at:` that visit's version).
-  """
-  @spec places(t()) :: [nib_visit() | map()]
-  def places(%__MODULE__{nibs: [here | earlier]} = reading) do
-    remote =
-      for passage <- Engine.call(:asked_from, [reading.loaded.story, here.nib]),
-          visit = Enum.find(earlier, &(&1.nib == passage)),
-          visit != nil,
-          do: Map.put(visit, :at, visit.version)
+  nil`), then the earlier visits the Linker may go back to, newest first.
 
-    [Map.put(here, :at, nil) | remote]
+  An earlier visit is offered when its passage has forks that may be asked
+  for from here (`inquest.from`) and, in that visit's state, a fork can
+  actually be taken. Visits where the Linker made the same choice collapse
+  into the latest of them (going further back for the same choice only
+  costs more), and at most #{@max_earlier} are offered. Each carries `back`:
+  how many choices going back would undo.
+  """
+  @spec places(t()) :: [map()]
+  def places(%__MODULE__{nibs: [here | earlier]} = reading) do
+    story = reading.loaded.story
+    passages = Engine.call(:asked_from, [story, here.nib])
+
+    remote =
+      earlier
+      |> Enum.with_index(1)
+      |> Enum.filter(fn {visit, _} ->
+        visit.nib in passages and Engine.call(:forks?, [story, visit.state, here.nib])
+      end)
+      |> Enum.uniq_by(fn {visit, _} -> {visit.nib, visit.chose} end)
+      |> Enum.take(@max_earlier)
+      |> Enum.map(fn {visit, back} -> Map.merge(visit, %{at: visit.version, back: back}) end)
+
+    [Map.merge(here, %{at: nil, back: 0}) | remote]
   end
 
   @doc "Inquests left in this reading: the budget, less the forks taken."
@@ -257,11 +339,13 @@ defmodule Inklinks.Reading do
         data: %{"link" => link_id, "nib" => before.nib, "label" => plain(label)}
       }
 
-      reading_after = %{reading | state: state}
+      # Forks looked at and now declined count as a path, for the ratings box.
+      declines? = reading.inquest not in [:none, :asking] and reading.looked != %{}
+      reading_after = %{reading | state: state, forked: reading.forked or declines?}
 
       record(
         reading_after,
-        leaving(reading, "took_link") ++ [taken | shown(view(reading_after))]
+        leaving(reading, "took_link") ++ [taken | shown(reading_after, view(reading_after))]
       )
     end
   end
@@ -331,20 +415,38 @@ defmodule Inklinks.Reading do
 
   @doc false
   # What showing a view records: the Nib, and when it ends something.
-  def shown(view) do
+  def shown(reading, view) do
     nib = %{
       type: "nib_shown",
       data: %{
         "nib" => view.nib,
         "passed" => view.passed,
-        "links" => Enum.map(view.links, & &1.id)
+        "links" => Enum.map(view.links, & &1.id),
+        # 1 the first time this reading shows this Nib; more is a re-read.
+        "visit" => Enum.count(reading.nibs, &(&1.nib == view.nib)) + 1
       }
     }
 
     ending = view.ending && %{type: "ending_reached", data: %{"ending" => view.ending}}
-    finished = view.done && %{type: "reading_finished", data: %{"ending" => view.ending}}
 
-    Enum.reject([nib, ending, finished], &(&1 in [nil, false]))
+    ask =
+      view.ending && reading.rating == :none && not rated?(reading, view.ending) &&
+        %{type: "rating_asked", data: %{"ending" => view.ending, "path" => reading.forked}}
+
+    finished =
+      view.done && %{type: "reading_finished", data: %{"ending" => view.ending || reading.ending}}
+
+    Enum.reject([nib, ending, ask, finished], &(&1 in [nil, false]))
+  end
+
+  # Has this Linker already rated this ending, in any reading?
+  defp rated?(reading, ending) do
+    from(e in Event,
+      where:
+        e.reader_id == ^reading.reader_id and e.inklink_id == ^reading.inklink_id and
+          e.type == "rating_given" and fragment("? @> ?", e.data, ^%{"ending" => ending})
+    )
+    |> Repo.exists?()
   end
 
   @doc """
@@ -360,7 +462,7 @@ defmodule Inklinks.Reading do
       inklink_id: reading.inklink_id
     }
 
-    case Events.append(stream, reading.version, events) do
+    case Events.append(stream, reading.version, resumed(reading) ++ events) do
       {:ok, stored} ->
         reading = Enum.reduce(stored, reading, &evolve(&2, &1))
         {:ok, %{reading | version: List.last(stored).stream_version}}
@@ -368,6 +470,31 @@ defmodule Inklinks.Reading do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # A reading inferred abandoned that the Linker comes back to: say so first.
+  defp resumed(%__MODULE__{abandoned: true} = reading) do
+    gap = DateTime.diff(DateTime.utc_now(), reading.last_at)
+    # The Nib they left off at: the last one shown, not where this step leads.
+    [%{type: "reading_resumed", data: %{"nib" => hd(reading.nibs).nib, "after_seconds" => gap}}]
+  end
+
+  defp resumed(_reading), do: []
+
+  @doc ~S"""
+  A Link label in quotation marks, for running text, unless it already
+  has its own (a line of dialogue does):
+
+      iex> Inklinks.Reading.quoted("Run")
+      "“Run”"
+      iex> Inklinks.Reading.quoted("“They named me Skittles.”")
+      "“They named me Skittles.”"
+  """
+  @spec quoted(String.t()) :: String.t()
+  def quoted(label) do
+    if String.first(label) in ~w(“ " ‘ ') and String.last(label) in ~w(” " ’ '),
+      do: label,
+      else: "“#{label}”"
   end
 
   @doc "A Link label or paragraph as plain text, for the record."

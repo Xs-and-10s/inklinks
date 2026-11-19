@@ -1,6 +1,7 @@
 defmodule Inklinks.Catalog do
   @moduledoc """
-  The Inklinks on offer: every IR file in `priv/inklinks/`.
+  The Inklinks on offer: every IR file in `priv/inklinks/`, plus any folders
+  configured as `:extra_catalog_dirs` (the tests add `test/fixtures/inklinks`).
 
   An Inklink's id is its file name without `.json`. The catalog reads only
   the IR's top level and its `config` settings, enough to list a work. What
@@ -24,11 +25,11 @@ defmodule Inklinks.Catalog do
   end
 
   @doc "Every Inklink found, ordered by title. Unreadable files are skipped."
-  @spec list(Path.t()) :: [Entry.t()]
-  def list(dir \\ dir()) do
-    dir
-    |> Path.join("*.json")
-    |> Path.wildcard()
+  @spec list(Path.t() | [Path.t()]) :: [Entry.t()]
+  def list(dirs \\ dirs()) do
+    dirs
+    |> List.wrap()
+    |> Enum.flat_map(&Path.wildcard(Path.join(&1, "*.json")))
     |> Enum.flat_map(fn path ->
       case read(path) do
         {:ok, entry} -> [entry]
@@ -39,10 +40,10 @@ defmodule Inklinks.Catalog do
   end
 
   @doc "One Inklink by id."
-  @spec fetch(String.t(), Path.t()) :: {:ok, Entry.t()} | :error
-  def fetch(id, dir \\ dir()) do
+  @spec fetch(String.t(), Path.t() | [Path.t()]) :: {:ok, Entry.t()} | :error
+  def fetch(id, dirs \\ dirs()) do
     # Only ids the catalog itself listed: never a path built from input.
-    case Enum.find(list(dir), &(&1.id == id)) do
+    case Enum.find(list(dirs), &(&1.id == id)) do
       nil -> :error
       entry -> {:ok, entry}
     end
@@ -89,5 +90,10 @@ defmodule Inklinks.Catalog do
     end)
   end
 
-  defp dir, do: Application.app_dir(:inklinks, "priv/inklinks")
+  defp dirs do
+    [
+      Application.app_dir(:inklinks, "priv/inklinks")
+      | Application.get_env(:inklinks, :extra_catalog_dirs, [])
+    ]
+  end
 end

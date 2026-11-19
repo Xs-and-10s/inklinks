@@ -126,7 +126,7 @@ defmodule InklinksWeb.InquestPageTest do
     test "shows the choice it could undo, without its forks", %{answered: answered} do
       html = patches(answered)
 
-      assert html =~ "Back when you chose “Stay at Eyrad’s side”"
+      assert html =~ ~r/Back when you chose\s*<span data-chosen>Stay at Eyrad’s side<\/span>/
       assert html =~ "look%3A2%3Aobey_at_thornbury"
       refute_forks(html)
     end

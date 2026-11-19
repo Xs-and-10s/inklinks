@@ -5,9 +5,9 @@ Everything the platform shows, and everything an Inker will learn, is a
 projection of that log. This file is the spec for the log, written so the
 Rust interpreter's own event log can match it.
 
-Status: the store is built (milestone 1); the reading events (milestone 2)
-and Inquest events (milestone 3) are built. Ratings come with 4, and the
-whole is finished in 5.
+Status: the store (milestone 1), reading events (2), Inquest events (3),
+and ratings, stopping and returning (4) are built. Milestone 5 turns this
+into the spec for the interpreter's event log.
 
 ## The store
 
@@ -140,7 +140,48 @@ reading.
 is projected from these events since the last `nib_shown`, so a reload or
 a second tab lands in the same place.
 
-### To come
+### Built (milestone 4): ratings, stopping, returning
 
-- **Milestone 4 (ratings):** a rating given; a reading abandoned
-  (inferred); a return for another ending.
+| Type | When | `data` |
+|---|---|---|
+| `rating_asked` | A `finale` is shown, the reading has not been asked yet, and this Linker has not rated this ending before (in any reading). Written with the Nib, so a reload asks again until answered | `ending`, `path` (true if the Linker took or declined a fork: the box then asks about their path) |
+| `rating_given` | They answer the box. Every score is optional, 1 to 5 | `ending`, `ending_score`, `inklink_score`, and `path_score` only when `path` was asked |
+| `rating_dismissed` | "Not now", Escape, or an answer with nothing in it | `ending` |
+| `change_wished` | Under "More…", a moment they would change: saved by "Add another" (as many as they like, each moment once) or by Done (the one selected then). Written before `rating_given` | `nib`, `back_to` (the version of that Nib's `nib_shown`), `chose` (what they chose there), `text` (or null) |
+| `nothing_to_change` | They opened "More…" and left "I wouldn’t change a thing" selected, having saved no moment. Not written if they never opened it | `ending` |
+| `reading_abandoned` | **Inferred**: no `reading_finished`, and nothing for `:abandon_after` (a day by default). `occurred_at` is the last event's time, when they actually stopped; `recorded_at` is when it was inferred | `nib` (where they stopped), `idle_seconds` |
+| `reading_resumed` | The Linker acts again in a reading inferred abandoned; written before their action | `nib`, `after_seconds` |
+| `returned_for_another_ending` | A reading starts for a Linker who has finished this Inklink before; written after `reading_started` | `readings_finished`, `endings_seen` |
+
+`nib_shown` also carries `visit`: 1 the first time a reading shows that
+Nib, more when it is shown again (a hub, or going back). That is a
+**re-read**.
+
+The ratings box opens a few seconds after the end of the finale scrolls
+into view, or from "Rate this ending", so it never covers the ending before
+it is read. It is asked once per reading; a dismissed box does not stop the
+next reading asking, a rated ending does.
+
+## Reading the log: what an Inker will see
+
+`Inklinks.Insights` answers the brief's questions with plain SQL over this
+table, and its tests run them against real readings. That is the check
+that the log holds enough:
+
+| Question | From |
+|---|---|
+| Where readers stop | `reading_abandoned.nib` |
+| Time per Nib | `nib_shown` to the Linker's next action in the stream (median) |
+| Re-reads | `nib_shown.visit > 1`; readers with several `reading_started` |
+| What happened to forks | `fork_looked`, `fork_taken`, `fork_declined` by `fork` |
+| What readers asked for | `inquest_submitted.text` (and the event after it: turned down or Inquest mode), `wanted_instead_submitted.text`, `change_wished.text` |
+| How endings land | `rating_given` by `ending` |
+| Returns | `returned_for_another_ending`; readers with more than one distinct `ending_reached` |
+
+**A lesson for the interpreter's log.** Time per Nib needs to tell the
+Linker's actions from what the platform or engine writes in the same
+moment (`ending_reached`, `rating_asked`, `reading_finished` share the
+Nib's timestamp). Here that is a list of action types in the query. A
+Rust event log would do better to say it on every event: an `actor`
+field, `linker | engine | platform`. Proposed for the spec in milestone 5.
+

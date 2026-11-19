@@ -1,0 +1,293 @@
+{
+  "ir": "3",
+  "inkjot": "0.6.0-draft",
+  "title": "The Well (test fixture)",
+  "ifid": "INKLINKS-FIXTURE-WELL",
+  "start": "well",
+  "config": [
+    {
+      "setting": "kind",
+      "value": "story-game"
+    },
+    {
+      "setting": "mode",
+      "value": "solo"
+    },
+    {
+      "setting": "pov",
+      "value": [
+        "gardener"
+      ]
+    },
+    {
+      "declare": "character",
+      "id": "gardener",
+      "label": "the gardener",
+      "tags": [
+        "playable"
+      ]
+    },
+    {
+      "declare": "npc",
+      "id": "pip",
+      "label": "Pip"
+    },
+    {
+      "declare": "resource",
+      "id": "inquests",
+      "value": 3
+    },
+    {
+      "declare": "state",
+      "id": "season",
+      "value": 0
+    }
+  ],
+  "acts": {},
+  "passages": [
+    {
+      "name": "well",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "A gnome sits on the rim of the well, swinging his boots."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "leave_an_offering",
+          "label": "Leave an offering",
+          "target": "season_turns",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [
+            {
+              "do": "set",
+              "target": "season",
+              "value": {
+                "+": [
+                  "season",
+                  1
+                ]
+              },
+              "when": null
+            }
+          ],
+          "ends_turn": false,
+          "overrides": []
+        },
+        {
+          "type": "link",
+          "id": "shoo_him_off",
+          "label": "Shoo him off",
+          "target": "season_turns",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [
+            {
+              "do": "set",
+              "target": "season",
+              "value": {
+                "+": [
+                  "season",
+                  1
+                ]
+              },
+              "when": null
+            }
+          ],
+          "ends_turn": false,
+          "overrides": []
+        },
+        {
+          "type": "link",
+          "id": "ask_his_name",
+          "label": "Ask his name",
+          "target": "season_turns",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": {
+            "<": [
+              "season",
+              2
+            ]
+          },
+          "hidden_until": null,
+          "for": null,
+          "effects": [
+            {
+              "do": "set",
+              "target": "season",
+              "value": {
+                "+": [
+                  "season",
+                  1
+                ]
+              },
+              "when": null
+            }
+          ],
+          "ends_turn": false,
+          "overrides": [],
+          "inquest": {
+            "stands_in_for": "shoo_him_off",
+            "by": "inker",
+            "from": [
+              "fair"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "season_turns",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The season turns."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "back_to_the_well",
+          "label": "Back to the well",
+          "target": "well",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": {
+            "<": [
+              "season",
+              3
+            ]
+          },
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": []
+        },
+        {
+          "type": "link",
+          "id": "to_the_fair",
+          "label": "To the Harvest Fair",
+          "target": "fair",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": {
+            ">=": [
+              "season",
+              3
+            ]
+          },
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "name": "fair",
+      "tags": [],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "At the Harvest Fair, Pip will not look at you."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "id": "go_home",
+          "label": "Go home",
+          "target": "home",
+          "kind": "go",
+          "act": null,
+          "arg": null,
+          "cost": [],
+          "scope": "private",
+          "capacity": null,
+          "clash": "none",
+          "check": null,
+          "when": null,
+          "hidden_until": null,
+          "for": null,
+          "effects": [],
+          "ends_turn": false,
+          "overrides": []
+        }
+      ]
+    },
+    {
+      "name": "home",
+      "tags": [
+        "finale"
+      ],
+      "margin": false,
+      "header": [],
+      "body": [
+        {
+          "type": "prose",
+          "paragraphs": [
+            [
+              "The garden is quiet."
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}
