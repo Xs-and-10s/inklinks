@@ -30,6 +30,40 @@ defmodule InklinksWeb.RatingPageTest do
       assert html =~ "Rate this ending"
     end
 
+    test "lists moments with the choice on its own line, never in doubled quotes", %{
+      conn: conn,
+      path: path
+    } do
+      for link <- @path, do: send_event(conn, path, "take:" <> link)
+      html = conn |> get(path) |> html_response(200)
+
+      assert html =~ "I wouldn’t change a thing"
+
+      assert html =~
+               ~r/<span>Where you chose<\/span>\s*<span data-chosen>\s*“They named me Skittles.”\s*<\/span>/
+
+      assert html =~ ~r/<span data-chosen>\s*Run\s*<\/span>/
+      refute html =~ "““"
+      assert html =~ "Add another"
+    end
+
+    test "Add another saves the moment and strikes it, without closing the box", %{
+      conn: conn,
+      path: path
+    } do
+      for link <- @path, do: send_event(conn, path, "take:" <> link)
+
+      html =
+        conn
+        |> send_event(path, "wish", %{"changeAt" => "4", "changeText" => "Take the treat."})
+        |> patches()
+
+      assert html =~ ~s(id="moments")
+      assert html =~ "<s>Run</s>"
+      assert html =~ "Saved. Pick another, or press Done."
+      refute html =~ "Thank you"
+    end
+
     test "a reload brings it back until it is answered", %{conn: conn, path: path} do
       for link <- @path, do: send_event(conn, path, "take:" <> link)
 

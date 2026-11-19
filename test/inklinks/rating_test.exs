@@ -84,6 +84,46 @@ defmodule Inklinks.RatingTest do
                last_event(reading, "change_wished")
     end
 
+    test "Add another saves a moment, strikes it, and keeps the box open", %{reader: reader} do
+      reading = to_the_end(reader, @ex3)
+      [first, second | _] = Rating.moments(reading)
+
+      {:ok, reading} =
+        Rating.wish(reading, %{"change_at" => "#{first.at}", "change_text" => "Keep the box."})
+
+      assert reading.rating == :asking
+      assert [%{wished: true}, %{wished: false} | _] = Rating.moments(reading)
+
+      # The same moment cannot be saved twice
+      assert {:error, :no_moment} = Rating.wish(reading, %{"change_at" => "#{first.at}"})
+
+      # Done saves the scores and the moment selected now
+      {:ok, reading} = Rating.answer(reading, %{"ending" => "4", "change_at" => "#{second.at}"})
+
+      types = reading.id |> Events.read_stream() |> Enum.map(& &1.type) |> Enum.take(-3)
+      assert types == ~w(change_wished change_wished rating_given)
+    end
+
+    test "with More… opened and nothing picked, records that nothing would change", %{
+      reader: reader
+    } do
+      reading = to_the_end(reader, @ex3)
+
+      {:ok, reading} =
+        Rating.answer(reading, %{"ending" => "5", "change_at" => "none", "more_opened" => true})
+
+      assert last_event(reading, "nothing_to_change").data == %{"ending" => "the_list"}
+    end
+
+    test "with More… never opened, says nothing about moments", %{reader: reader} do
+      reading = to_the_end(reader, @ex3)
+
+      {:ok, reading} =
+        Rating.answer(reading, %{"ending" => "5", "change_at" => "none", "more_opened" => false})
+
+      refute last_event(reading, "nothing_to_change")
+    end
+
     test "with nothing at all is the same as Not now", %{reader: reader} do
       reading = to_the_end(reader, @ex3)
 

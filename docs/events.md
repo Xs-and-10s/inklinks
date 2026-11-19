@@ -147,7 +147,8 @@ a second tab lands in the same place.
 | `rating_asked` | A `finale` is shown, the reading has not been asked yet, and this Linker has not rated this ending before (in any reading). Written with the Nib, so a reload asks again until answered | `ending`, `path` (true if the Linker took or declined a fork: the box then asks about their path) |
 | `rating_given` | They answer the box. Every score is optional, 1 to 5 | `ending`, `ending_score`, `inklink_score`, and `path_score` only when `path` was asked |
 | `rating_dismissed` | "Not now", Escape, or an answer with nothing in it | `ending` |
-| `change_wished` | Under "More…", a moment they would change | `nib`, `back_to` (the version of that Nib's `nib_shown`), `chose` (what they chose there), `text` (or null) |
+| `change_wished` | Under "More…", a moment they would change: saved by "Add another" (as many as they like, each moment once) or by Done (the one selected then). Written before `rating_given` | `nib`, `back_to` (the version of that Nib's `nib_shown`), `chose` (what they chose there), `text` (or null) |
+| `nothing_to_change` | They opened "More…" and left "I wouldn’t change a thing" selected, having saved no moment. Not written if they never opened it | `ending` |
 | `reading_abandoned` | **Inferred**: no `reading_finished`, and nothing for `:abandon_after` (a day by default). `occurred_at` is the last event's time, when they actually stopped; `recorded_at` is when it was inferred | `nib` (where they stopped), `idle_seconds` |
 | `reading_resumed` | The Linker acts again in a reading inferred abandoned; written before their action | `nib`, `after_seconds` |
 | `returned_for_another_ending` | A reading starts for a Linker who has finished this Inklink before; written after `reading_started` | `readings_finished`, `endings_seen` |

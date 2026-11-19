@@ -99,6 +99,13 @@ Decided while building milestone 4 (easy to change):
   (`:sweep_every`); a later action records `reading_resumed` first.
 - **A dismissed rating** does not stop the next reading of that ending
   asking; a given one does.
+- **More…** (decided with Mark, 19 Nov): each choice on its own line under
+  "Where you chose", in the reading face, as the Link read, with no quotes
+  added (a line of dialogue brings its own; in running text, `quoted/1`
+  adds them only when missing). "I wouldn’t change a thing" is selected at
+  first, and recorded only if More… was opened. "Add another" saves a
+  moment, strikes it, and returns to that default; Done saves the scores
+  and the moment selected then.
 
 ## How to resume
 

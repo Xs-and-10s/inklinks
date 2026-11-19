@@ -8,6 +8,8 @@ defmodule Inklinks.ReadingTest do
 
   alias Inklinks.{Events, Reading}
 
+  doctest Inklinks.Reading, only: [quoted: 1]
+
   @ex3 "ex3-the-fall-of-the-old-regime"
 
   setup do

@@ -131,17 +131,20 @@ defmodule InklinksWeb.ReadingPage do
   end
 
   defp run("rate", reading, signals) do
-    answers = %{
-      "ending" => signals["ratingEnding"],
-      "inklink" => signals["ratingInklink"],
-      "path" => signals["ratingPath"],
-      "change_at" => signals["changeAt"],
-      "change_text" => signals["changeText"]
-    }
-
-    with {:ok, reading} <- Rating.answer(reading, answers) do
+    with {:ok, reading} <- Rating.answer(reading, answers(signals)) do
       said = if reading.rating == :done, do: "Thank you. The Inker will read this.", else: ""
       {:ok, [:close_dialogs, :clear_rating, {:nib, reading, nil}, {:announce, said}]}
+    end
+  end
+
+  # "Add another": save this moment, strike it from the list, and go back to
+  # "I wouldn't change a thing". Only the list and its status are patched:
+  # the scores already chosen stay in their signals, and the dialog stays
+  # open (a morph of the dialog itself would drop its `open`).
+  defp run("wish", reading, signals) do
+    with {:ok, reading} <- Rating.wish(reading, answers(signals)) do
+      {:ok,
+       [{:moments, reading}, :clear_moment, {:box_status, "Saved. Pick another, or press Done."}]}
     end
   end
 
@@ -152,6 +155,17 @@ defmodule InklinksWeb.ReadingPage do
   end
 
   defp run(_event, _reading, _), do: {:error, :unknown_event}
+
+  defp answers(signals) do
+    %{
+      "ending" => signals["ratingEnding"],
+      "inklink" => signals["ratingInklink"],
+      "path" => signals["ratingPath"],
+      "change_at" => signals["changeAt"],
+      "change_text" => signals["changeText"],
+      "more_opened" => signals["moreOpened"]
+    }
+  end
 
   # `here:obey_at_thornbury` or `2:obey_at_thornbury`. A Link id may itself
   # hold colons, so only the first one splits.
@@ -218,7 +232,7 @@ defmodule InklinksWeb.ReadingPage do
 
   defp back_when(reading, at) do
     case Enum.find(Reading.places(reading), &(&1.at == at)) do
-      %{chose: chose} when is_binary(chose) -> "Back when you chose “#{chose}”: "
+      %{chose: chose} when is_binary(chose) -> "Back when you chose #{Reading.quoted(chose)}: "
       _ -> "Earlier: "
     end
   end
@@ -268,10 +282,19 @@ defmodule InklinksWeb.ReadingPage do
       ratingEnding: "",
       ratingInklink: "",
       ratingPath: "",
-      changeAt: "",
-      changeText: ""
+      changeAt: "none",
+      changeText: "",
+      moreOpened: false
     })
   end
+
+  defp apply_patch(:clear_moment, conn),
+    do: patch_signals(conn, %{changeAt: "none", changeText: ""})
+
+  defp apply_patch({:moments, reading}, conn),
+    do: patch(conn, &moments/1, moments: Rating.moments(reading))
+
+  defp apply_patch({:box_status, text}, conn), do: patch(conn, &box_status/1, text: text)
 
   defp resync(conn, reading) do
     {:ok, reading} = Reading.load(reading.id, reading.reader_id)
@@ -341,7 +364,11 @@ defmodule InklinksWeb.ReadingPage do
 
       <nav :for={place <- @earlier} aria-labelledby={"earlier-#{place.at}"} data-earlier>
         <h2 id={"earlier-#{place.at}"}>
-          {if place.chose, do: "Back when you chose “#{place.chose}”", else: "Earlier"}
+          <%= if place.chose do %>
+            Back when you chose <span data-chosen>{place.chose}</span>
+          <% else %>
+            Earlier
+          <% end %>
           <small>(undoes {choices(place.back)})</small>
         </h2>
         <ul>
@@ -428,7 +455,7 @@ defmodule InklinksWeb.ReadingPage do
       <button :for={fork <- @forks} type="button" data-on:click={event("take-fork:" <> fork.id)}>
         <.parts parts={fork.label} />
       </button>
-      <small>instead of “<.parts parts={@link.label} />”</small>
+      <small>instead of {@link.label |> Reading.plain() |> Reading.quoted()}</small>
     </li>
     """
   end
@@ -493,7 +520,7 @@ defmodule InklinksWeb.ReadingPage do
     ~H"""
     <div id="dialogs">
       <.box
-        title={"What did you want instead of “#{@label}”?"}
+        title={"What did you want instead of #{Reading.quoted(@label)}?"}
         hint="The Inker will read this. Then choose a Link as usual."
         answer="wanted-answer"
         skip="wanted-skip"
@@ -514,7 +541,7 @@ defmodule InklinksWeb.ReadingPage do
         id="box"
         aria-labelledby="box-title"
         aria-describedby="box-hint"
-        data-signals="{ratingEnding: '', ratingInklink: '', ratingPath: '', changeAt: '', changeText: ''}"
+        data-signals__ifmissing="{ratingEnding: '', ratingInklink: '', ratingPath: '', changeAt: 'none', changeText: '', moreOpened: false}"
         data-on:cancel__prevent={event("rating-dismiss")}
       >
         <form data-on:submit__prevent={event("rate")}>
@@ -525,19 +552,24 @@ defmodule InklinksWeb.ReadingPage do
           <.scale name="inklink" signal="rating-inklink" legend="The Inklink overall" />
           <.scale :if={@path} name="path" signal="rating-path" legend="Your path, off the canon" />
 
-          <details :if={@moments != []}>
+          <details :if={@moments != []} data-on:toggle="$moreOpened = $moreOpened || el.open">
             <summary>More…</summary>
-            <fieldset>
-              <legend>A moment you would change</legend>
-              <label :for={moment <- @moments}>
-                <input type="radio" name="change" value={moment.at} data-bind:change-at />
-                Where you chose “{moment.chose}”
-              </label>
-            </fieldset>
+            <.moments moments={@moments} />
             <label>
               What would you change? <textarea data-bind:change-text rows="3" maxlength="2000"></textarea>
             </label>
+            <p>
+              <button
+                type="button"
+                data-attr:disabled="$changeAt == 'none'"
+                data-on:click={event("wish")}
+              >
+                Add another
+              </button>
+            </p>
           </details>
+
+          <p id="box-status" role="status"></p>
 
           <p>
             <button type="submit">Done</button>
@@ -552,6 +584,51 @@ defmodule InklinksWeb.ReadingPage do
   def dialogs(assigns) do
     ~H"""
     <div id="dialogs"></div>
+    """
+  end
+
+  attr :text, :string, required: true
+
+  # The box's own status line: a live region inside the modal, where a
+  # screen reader is listening while the box is open.
+  defp box_status(assigns) do
+    ~H"""
+    <p id="box-status" role="status">{@text}</p>
+    """
+  end
+
+  attr :moments, :list, required: true
+
+  # The moments a Linker could change, oldest first. Each choice sits on its
+  # own line, in the reading face, as the Link read: no quotes added (a line
+  # of dialogue brings its own). A moment already saved is struck and
+  # disabled. The whole label is the radio's, so tapping either line picks it.
+  defp moments(assigns) do
+    ~H"""
+    <fieldset id="moments">
+      <legend>A moment you would change</legend>
+      <label>
+        <input type="radio" name="change" value="none" data-bind:change-at />
+        <span>I wouldn’t change a thing</span>
+      </label>
+      <label :for={moment <- @moments} data-wished={moment.wished}>
+        <input
+          type="radio"
+          name="change"
+          value={moment.at}
+          disabled={moment.wished}
+          data-bind:change-at
+        />
+        <span>Where you chose</span>
+        <span data-chosen>
+          <%= if moment.wished do %>
+            <s>{moment.chose}</s>
+          <% else %>
+            {moment.chose}
+          <% end %>
+        </span>
+      </label>
+    </fieldset>
     """
   end
 

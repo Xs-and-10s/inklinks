@@ -46,7 +46,9 @@ defmodule Inklinks.Reading do
     forked: false,
     # The last event's time, and whether the reading was inferred abandoned.
     last_at: nil,
-    abandoned: false
+    abandoned: false,
+    # Versions of the Nibs the Linker has said they would change (More…).
+    wished: []
   ]
 
   @type t :: %__MODULE__{
@@ -66,7 +68,8 @@ defmodule Inklinks.Reading do
           ending: String.t() | nil,
           forked: boolean(),
           last_at: DateTime.t() | nil,
-          abandoned: boolean()
+          abandoned: boolean(),
+          wished: [pos_integer()]
         }
 
   @typedoc """
@@ -247,6 +250,9 @@ defmodule Inklinks.Reading do
 
       "reading_resumed" ->
         %{reading | abandoned: false}
+
+      "change_wished" ->
+        %{reading | wished: [data["back_to"] | reading.wished]}
 
       _ ->
         reading
@@ -474,6 +480,22 @@ defmodule Inklinks.Reading do
   end
 
   defp resumed(_reading), do: []
+
+  @doc ~S"""
+  A Link label in quotation marks, for running text, unless it already
+  has its own (a line of dialogue does):
+
+      iex> Inklinks.Reading.quoted("Run")
+      "“Run”"
+      iex> Inklinks.Reading.quoted("“They named me Skittles.”")
+      "“They named me Skittles.”"
+  """
+  @spec quoted(String.t()) :: String.t()
+  def quoted(label) do
+    if String.first(label) in ~w(“ " ‘ ') and String.last(label) in ~w(” " ’ '),
+      do: label,
+      else: "“#{label}”"
+  end
 
   @doc "A Link label or paragraph as plain text, for the record."
   @spec plain(Engine.paragraph()) :: String.t()
