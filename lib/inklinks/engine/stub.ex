@@ -47,15 +47,46 @@ defmodule Inklinks.Engine.Stub do
     end
   end
 
-  # Inquests come in milestone 3.
-  @impl true
-  def forks?(_story, _w), do: false
+  # -- forks ---------------------------------------------------------------------
+  # A fork is offered only beside its offered Link: if that Link is not on
+  # offer (its `when` fails), neither is the fork. Forks come in the order
+  # the Inker wrote them.
 
   @impl true
-  def fork(_story, _w, _canon), do: :none
+  def asked_from(%Story{} = story, nib), do: Map.get(story.asked_from, nib, [])
 
   @impl true
-  def take_fork(_story, _w, _fork), do: {:error, :not_offered}
+  def forks?(%Story{}, %World{} = w, from), do: available_forks(w, from) != []
+
+  @impl true
+  def forks(%Story{}, %World{} = w, link, from) do
+    for fork <- available_forks(w, from), fork["inquest"]["stands_in_for"] == link do
+      %{id: fork["id"], label: Emphasis.lower([fork["label"]])}
+    end
+  end
+
+  @impl true
+  def take_fork(%Story{} = story, %World{} = w, fork_id) do
+    case Enum.find(w.forks, &(&1["id"] == fork_id and offered?(w, &1))) do
+      nil ->
+        {:error, :not_offered}
+
+      fork ->
+        w = Enum.reduce(fork["effects"] || [], w, &apply_effect(&1, [], story, &2))
+        {:ok, arrive(w, story, fork["target"], [], 0)}
+    end
+  end
+
+  # Asked from this Nib: all its forks. Asked from a later Nib, about this
+  # earlier visit: only the forks the Inker marked `from` that Nib.
+  defp available_forks(w, from) do
+    Enum.filter(w.forks, fn fork ->
+      offered?(w, fork) and (w.at == from or from in (fork["inquest"]["from"] || []))
+    end)
+  end
+
+  defp offered?(w, fork),
+    do: Enum.any?(w.offered, &(&1["id"] == fork["inquest"]["stands_in_for"]))
 
   # -- arriving ------------------------------------------------------------------
 
@@ -85,7 +116,15 @@ defmodule Inklinks.Engine.Stub do
     if next do
       arrive(w, story, next, sections, depth + 1)
     else
-      %{w | at: name, offered: links, view: view_of(passage, sections, links, story)}
+      {forks, links} = Enum.split_with(links, &Map.has_key?(&1, "inquest"))
+
+      %{
+        w
+        | at: name,
+          offered: links,
+          forks: forks,
+          view: view_of(passage, sections, links, story)
+      }
     end
   end
 

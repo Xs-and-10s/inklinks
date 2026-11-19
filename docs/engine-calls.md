@@ -10,7 +10,7 @@ The contract is `Inklinks.Engine` (`lib/inklinks/engine.ex`). Every call
 goes through `Inklinks.Engine.call/2`, which wraps it in a telemetry span
 (`[:inklinks, :engine, callback]`), so the counts below are measured, not
 guessed. Status: measured on the stub with Ex 3 (milestone 2); Inquest
-calls come with milestone 3.
+calls counted on the Littlejon fixture (milestone 3).
 
 ## The callbacks
 
@@ -21,9 +21,14 @@ calls come with milestone 3.
 | `start/2` | story, seed | state |
 | `view/2` | story, state | the Nib's Ink by passage, its canon Links, ending, done |
 | `take/3` | story, state, Link id | state, or `:not_offered` |
-| `forks?/2` | story, state | yes or no (milestone 3) |
-| `fork/3` | story, state, canon Link id | the fork, or none (milestone 3) |
-| `take_fork/3` | story, state, fork id | state, or `:not_offered` (milestone 3) |
+| `asked_from/2` | story, Nib | passages whose forks may be asked for from this Nib (static, from `inquest.from`) |
+| `forks?/3` | story, state, Nib asked from | yes or no: may a fork be taken here, asking from that Nib? |
+| `forks/4` | story, state, offered Link id, Nib asked from | the forks that stand in for it, in the Inker's order (ids and labels) |
+| `take_fork/3` | story, state, fork id | state, or `:not_offered` |
+
+`forks?/3` and `forks/4` take the Nib the Linker is asking **from**. Given
+the current state, that is the Nib's own forks. Given the state of an
+earlier visit, only the forks whose `from` names the current Nib.
 
 ## When the platform calls, per request
 
@@ -37,6 +42,30 @@ then `take` for each `link_taken`.
 | Start a reading | `start` ×1, `view` ×1, `meta` ×1 | |
 | Open a reading (`GET /readings/:id`), *n* Links in | `start` ×1, `take` ×*n*, `view` ×1 | the rebuild |
 | Take a Link, *n* Links in | `start` ×1, `take` ×*n* (rebuild), then `take` ×1 and `view` ×3 | the rebuild runs in `authorize/2` before the event |
+
+Inquests (milestone 3) add, on top of the rebuild every event pays
+(`start` ×1, then `take` or `take_fork` ×*n*):
+
+| Request | Engine calls |
+|---|---|
+| Press Inquest | `view` ×1 |
+| Answer or skip the box | `asked_from` ×1, `forks?` ×1 per place (the Nib, and each earlier visit) |
+| Open a Link (hover, focus or first tap) | `asked_from` ×1, `view` ×1 per place, `forks` ×1: **one Link's forks cross, for one look** |
+| Take a fork | `forks` ×1, `take_fork` ×1 (from the earlier visit's state when going back), `view` ×2 |
+| Leave Inquest mode, or answer "what did you want instead" | `view` ×1–2 |
+
+A look is the only call made on hover, so it is the one that must be fast:
+a reader moving the mouse down a list of Links makes one request per Link.
+The stub answers `forks` in microseconds.
+
+**Going back needs old states.** A fork asked for from a later Nib is taken
+from the state of an earlier visit. The platform keeps every `nib_shown`'s
+state while it replays a reading (`Reading.nibs`), so the stub needs nothing
+more. For the Rust engine across a bridge, that means either holding one
+state handle per Nib shown (cheap as NIF resources; a memory question for a
+sidecar), or a `replay(story, seed, actions, upto: version)` call that
+rebuilds an earlier state in one trip. This is the strongest argument yet
+for a replay or snapshot call.
 
 So **one Link costs *n* + 1 `take`s**, and a whole reading of *n* Links
 costs about *n*²/2. For a story that is nothing; for a game with thousands
@@ -90,7 +119,10 @@ of moves it is the first thing to fix.
 - **Handles are opaque.** The platform never looks inside a story or a
   state.
 - **The log is the record, not the state.** See above.
-- **Forks cross only when asked.** `view/2` returns canon Links only;
-  `fork/3` returns one fork, for one flip.
+- **Forks cross only when asked.** `view/2` returns offered Links only;
+  `forks/4` returns one Link's forks, for one look. `forks?/3` says only
+  yes or no. A fork's id reaches the page only in the patch that answers
+  its look, and the platform refuses to take a fork the Linker has not
+  been shown.
 - **The platform owns Inquests.** The budget comes from `meta/1`; what is
   left is counted from the log. The engine never spends.

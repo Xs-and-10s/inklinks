@@ -46,7 +46,7 @@ defmodule InklinksWeb.ReadingPageTest do
     test "answers with the next Nib, patched in a View Transition", %{conn: conn, path: path} do
       conn = take(conn, path, "arrival#1")
 
-      assert [%{type: "datastar-patch-elements", data: data}] = sse_events(conn)
+      data = nib_patch(conn)
       assert "useViewTransition true" in data
       html = Enum.join(data, "\n")
       assert html =~ "It goes on twice."
@@ -59,7 +59,7 @@ defmodule InklinksWeb.ReadingPageTest do
     } do
       conn = take(conn, path, "state#1")
 
-      html = conn |> sse_events() |> hd() |> Map.fetch!(:data) |> Enum.join("\n")
+      html = conn |> nib_patch() |> Enum.join("\n")
       assert html =~ "The front room is full of shoes."
     end
 
@@ -68,6 +68,13 @@ defmodule InklinksWeb.ReadingPageTest do
       assert stranger |> get(path) |> response(404)
       assert stranger |> take(path, "arrival#1") |> response(404)
     end
+  end
+
+  defp nib_patch(conn) do
+    conn
+    |> sse_events()
+    |> Enum.find(fn %{data: data} -> Enum.any?(data, &(&1 =~ ~s(id="nib"))) end)
+    |> Map.fetch!(:data)
   end
 
   defp take(conn, path, link) do

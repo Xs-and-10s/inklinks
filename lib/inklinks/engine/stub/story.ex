@@ -9,7 +9,22 @@ defmodule Inklinks.Engine.Stub.Story do
   """
 
   @enforce_keys [:title, :start, :pov, :passages, :declared]
-  defstruct [:title, :start, :pov, :passages, :declared, :kind, :mode, inquests: 0, ir: nil]
+  defstruct [
+    :title,
+    :start,
+    :pov,
+    :passages,
+    :declared,
+    :kind,
+    :mode,
+    inquests: 0,
+    ir: nil,
+    # Nib => passages whose forks may be asked for from it (`inquest.from`).
+    asked_from: %{}
+  ]
+
+  # A fork is a Link with an `inquest` field (the shape requested for IR 3):
+  # `"inquest": {"stands_in_for": "obey_at_thornbury", "by": "inker"}`.
 
   @type t :: %__MODULE__{}
 
@@ -53,9 +68,10 @@ defmodule Inklinks.Engine.Stub.Story do
       pov: config |> setting("pov") |> List.wrap() |> List.first(),
       kind: setting(config, "kind"),
       mode: setting(config, "mode"),
-      inquests: inquests(declared),
+      inquests: if(forks?(passages), do: inquests(declared), else: 0),
       passages: Map.new(passages, &{&1["name"], &1}),
-      declared: declared
+      declared: declared,
+      asked_from: asked_from(passages)
     }
   end
 
@@ -71,13 +87,31 @@ defmodule Inklinks.Engine.Stub.Story do
 
   defp inquests(_), do: 0
 
+  defp asked_from(passages) do
+    for passage <- passages,
+        %{"inquest" => %{"from" => froms}} <- passage["body"],
+        from <- froms,
+        reduce: %{} do
+      acc -> Map.update(acc, from, [passage["name"]], &Enum.uniq(&1 ++ [passage["name"]]))
+    end
+  end
+
+  # Inquests are on only when the Inker declared them *and* hid a fork.
+  defp forks?(passages) do
+    Enum.any?(passages, fn p -> Enum.any?(p["body"], &match?(%{"inquest" => %{}}, &1)) end)
+  end
+
   # -- what the stub cannot play -------------------------------------------------
 
   defp unsupported(story, config, passages) do
     [
       if(story.mode not in [nil, "solo"], do: "#{story.mode} mode"),
       if(story.pov == nil, do: "a story with no pov"),
+      if(story.mode == "cohort" and forks?(passages), do: "Inquests in cohort mode"),
       if(not Map.has_key?(story.passages, story.start || ""), do: "a missing start passage"),
+      for {from, _} <- story.asked_from, not Map.has_key?(story.passages, from) do
+        "a fork asked for from `#{from}`, which is not a passage"
+      end,
       Enum.map(config, &config_statement/1),
       Enum.map(passages, &passage_reasons/1)
     ]
@@ -96,7 +130,13 @@ defmodule Inklinks.Engine.Stub.Story do
   defp config_statement(_), do: nil
 
   defp passage_reasons(%{"header" => header, "body" => body} = passage) do
+    offered =
+      for %{"type" => "link", "id" => id} = l <- body, not Map.has_key?(l, "inquest"), do: id
+
     [
+      for %{"inquest" => %{"stands_in_for" => link}} = fork <- body, link not in offered do
+        "a fork (`#{fork["id"]}`) standing in for `#{link}`, which is not an offered Link in `#{passage["name"]}`"
+      end,
       if("lib" in passage["tags"], do: "`[lib]` passages"),
       Enum.map(header, &header_statement/1),
       Enum.map(body, &node_reasons/1)
@@ -119,7 +159,8 @@ defmodule Inklinks.Engine.Stub.Story do
       if(link["check"] != nil, do: "Links with a check"),
       expr_reasons(link["when"]),
       expr_reasons(link["hidden_until"]),
-      Enum.map(link["effects"] || [], &effect_reasons/1)
+      Enum.map(link["effects"] || [], &effect_reasons/1),
+      inquest_reasons(link["inquest"])
     ]
   end
 
@@ -144,6 +185,15 @@ defmodule Inklinks.Engine.Stub.Story do
   end
 
   defp node_reasons(%{"type" => type}), do: "`#{type}` nodes"
+
+  defp inquest_reasons(nil), do: nil
+  defp inquest_reasons(%{"by" => by}) when by in ["monkeypaw", "storyteller"], do: "#{by} forks"
+
+  defp inquest_reasons(%{"stands_in_for" => link} = inquest) when is_binary(link) do
+    if is_list(Map.get(inquest, "from", [])), do: nil, else: "a fork whose `from` is not a list"
+  end
+
+  defp inquest_reasons(_), do: "a fork that stands in for no offered Link"
 
   defp effect_reasons(%{"do" => verb} = effect) do
     [

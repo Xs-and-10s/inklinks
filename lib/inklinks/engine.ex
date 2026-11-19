@@ -19,9 +19,9 @@ defmodule Inklinks.Engine do
       the same state. So a reading can be rebuilt from its event log
       (`reading_started` carries the seed; each `link_taken` / `fork_taken`
       a Link id), and the log, not the engine's state, is the record.
-    * **Forks never leave the engine unasked.** `view/2` shows canon Links
-      only. A fork crosses the boundary only through `fork/3`, one at a time,
-      when a Linker in Inquest mode flips the canon Link it stands in for.
+    * **Forks never leave the engine unasked.** `view/2` shows the offered
+      Links only. Forks cross the boundary only through `forks/4`, for one
+      offered Link at a time, when a Linker in Inquest mode flips it.
     * **The platform owns Inquests.** How many a reading has is declared in
       the IR (`resource inquests: 3`); how many are left is counted from the
       log. The engine says where forks are and plays them; it never spends.
@@ -71,7 +71,7 @@ defmodule Inklinks.Engine do
   @typedoc "A Link as the Linker sees it."
   @type link :: %{id: link_id(), label: paragraph()}
 
-  @typedoc "What to show now."
+  @typedoc "What to show now. `links` are the offered Links: never a fork."
   @type view :: %{
           title: String.t(),
           # The Nib the Linker is at: the last passage of the step.
@@ -107,26 +107,39 @@ defmodule Inklinks.Engine do
   @doc "Begins a reading. The seed drives every roll and shuffle."
   @callback start(story(), seed :: integer()) :: {:ok, state()}
 
-  @doc "What the Linker sees now: the Nib's Ink and its canon Links."
+  @doc "What the Linker sees now: the Nib's Ink and its offered Links."
   @callback view(story(), state()) :: view()
 
-  @doc "Takes a canon Link. Only a Link that `view/2` offers is accepted."
+  @doc "Takes an offered Link. Only a Link that `view/2` offers is accepted."
   @callback take(story(), state(), link_id()) :: {:ok, state()} | {:error, :not_offered}
 
   @doc """
-  Whether the current Nib hides any fork the Linker could take now. This is
-  all an Inquest learns before the Linker looks: yes (Inquest mode) or no
-  ("Noted. The Inker will read this.").
+  Passages whose forks may be asked for from this Nib (`~ inquest from`),
+  besides the Nib's own. Read from the IR; no state needed.
   """
-  @callback forks?(story(), state()) :: boolean()
+  @callback asked_from(story(), passage()) :: [passage()]
 
   @doc """
-  The fork that stands in for this canon Link, if the Inker hid one here.
-  Called once per flip, never in advance.
+  Whether a state hides any fork the Linker could take, asking from the Nib
+  `from`. When the state is at `from`, that is the Nib's own forks; when it
+  is an earlier visit (another passage), only the forks marked to be asked
+  for from `from`. This is all an Inquest learns before the Linker looks:
+  yes (Inquest mode) or no ("Noted. The Inker will read this.").
   """
-  @callback fork(story(), state(), canon :: link_id()) :: {:ok, link()} | :none
+  @callback forks?(story(), state(), from :: passage()) :: boolean()
 
-  @doc "Takes a fork, as `take/3` takes a canon Link."
+  @doc """
+  The forks that stand in for this offered Link, in the order the Inker
+  wrote them, by the same rule as `forks?/3`. Called once per flip, never in
+  advance.
+  """
+  @callback forks(story(), state(), link :: link_id(), from :: passage()) :: [link()]
+
+  @doc """
+  Takes a fork, as `take/3` takes an offered Link. To take a fork asked for
+  from a later Nib, the platform passes the state of that earlier visit:
+  going back is the platform's replay, not the engine's.
+  """
   @callback take_fork(story(), state(), fork :: link_id()) ::
               {:ok, state()} | {:error, :not_offered}
 

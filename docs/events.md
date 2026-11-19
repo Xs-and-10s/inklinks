@@ -5,9 +5,9 @@ Everything the platform shows, and everything an Inker will learn, is a
 projection of that log. This file is the spec for the log, written so the
 Rust interpreter's own event log can match it.
 
-Status: the store is built (milestone 1); the reading events are built
-(milestone 2). Inquest events come with milestone 3, ratings with 4, and
-the whole is finished in 5.
+Status: the store is built (milestone 1); the reading events (milestone 2)
+and Inquest events (milestone 3) are built. Ratings come with 4, and the
+whole is finished in 5.
 
 ## The store
 
@@ -91,10 +91,56 @@ checks that a reading rebuilt from its log shows what the live one shows.
 And every `link_taken` names a Link listed in the `nib_shown` just before
 it: a reader can never take a Link the IR does not offer.
 
+### Built (milestone 3): Inquests, flow D
+
+Every Inquest event carries `nib`, the Nib the Linker is at. `link` is the
+offered Link a fork stands in for. Free text is trimmed and capped at 2,000
+characters; an empty answer is a skip.
+
+**Forks asked for from a later Nib.** When the fork stands in for a Link
+at an earlier passage (`~ inquest from ch3`), its events also carry `at`,
+the earlier passage, and `back_to`, the `stream_version` of that visit's
+`nib_shown`. So a record reads: asked at `ch3`, back to `ch2` (version 2),
+took `free_the_widow` instead of `obey_at_thornbury`.
+
+| Type | When | `data` (besides `nib`) |
+|---|---|---|
+| `inquest_opened` | The Linker presses Inquest; the box opens | `remaining` (Inquests left) |
+| `inquest_submitted` | They answer "What would you change here?" | `text` |
+| `inquest_skipped` | They skip it (Skip, Escape, or an empty answer) | |
+| `inquest_turned_down` | Nothing to look at: the request is noted, nothing spent | `reason`: `no_forks`, or `none_left` when the budget is spent |
+| `inquest_mode_entered` | Forks are hidden here, or asked for from here: Inquest mode | `remaining` |
+| `fork_looked` | A fork is shown for the first time in this Inquest mode: opening a Link shows all its forks, so one event per fork (showing them again is not recorded) | `link`, `fork`, `label`, and `at`, `back_to` when earlier |
+| `fork_taken` | The Linker takes a fork they were shown. **This, and only this, spends an Inquest** | `link`, `fork`, `label`, and `at`, `back_to` when earlier |
+| `fork_declined` | A fork shown, left untaken when Inquest mode ends | `link`, `fork`, `by`: `left`, `wanted_instead`, `took_link`, or `took_another_fork`; and `at`, `back_to` when earlier |
+| `wanted_instead_opened` | In Inquest mode, they choose an offered Link with no fork | `link`, and `at`, `back_to` when earlier |
+| `wanted_instead_submitted` | They say what they wanted instead | `link`, `text`, and `at`, `back_to` when earlier |
+| `wanted_instead_skipped` | They skip that | `link`, and `at`, `back_to` when earlier |
+| `inquest_mode_left` | Inquest mode ends without a fork taken | `reason`: `left` (button or Escape), `wanted_instead`, `took_link` |
+
+A `fork_taken` is followed, in the same append, by any `fork_declined`s and
+then `nib_shown` for where the fork led. Taking a fork moves on, which ends
+Inquest mode, so no `inquest_mode_left` follows it.
+
+**Going back.** A `fork_taken` with `back_to` is replayed from the engine
+state at that earlier `nib_shown`, not the current one: the world goes back
+to that visit (the widow is in the water again), then the fork is taken.
+Inquests already spent stay spent; they are the Linker's, not the story's.
+
+**Inquests left** is never stored: it is `reading_started.inquests` less
+the stream's `fork_taken` count. A property test runs random sequences of
+everything a Linker can do, at the current Nib and at earlier ones, forged
+requests included, and checks that the count falls by exactly one on each
+`fork_taken` and at no other time; that every `fork_taken` follows a
+`fork_looked` of the same fork since the last `nib_shown`; that no fork ever
+appears in a `nib_shown`'s `links`; and that the log rebuilds the same
+reading.
+
+**Where flow D stands** (box open, Inquest mode, asking what they wanted)
+is projected from these events since the last `nib_shown`, so a reload or
+a second tab lands in the same place.
+
 ### To come
 
-- **Milestone 3 (Inquests):** an Inquest opened, submitted (with its text)
-  or skipped; turned down, with no forks; a fork looked at, taken or
-  declined.
 - **Milestone 4 (ratings):** a rating given; a reading abandoned
   (inferred); a return for another ending.

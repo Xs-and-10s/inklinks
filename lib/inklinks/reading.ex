@@ -21,7 +21,24 @@ defmodule Inklinks.Reading do
   alias Inklinks.Events.Event
 
   @enforce_keys [:id, :reader_id, :inklink_id]
-  defstruct [:id, :reader_id, :inklink_id, :loaded, :state, :seed, version: 0]
+  defstruct [
+    :id,
+    :reader_id,
+    :inklink_id,
+    :loaded,
+    :state,
+    :seed,
+    version: 0,
+    # Inquests (see Inklinks.Inquest): the budget the reading started with,
+    # how many forks it has taken, and where flow D stands on this Nib.
+    budget: 0,
+    spent: 0,
+    inquest: :none,
+    looked: %{},
+    # Every Nib shown, newest first, with the engine state there: going back
+    # for a fork asked from a later Nib starts from one of these.
+    nibs: []
+  ]
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
@@ -30,7 +47,23 @@ defmodule Inklinks.Reading do
           loaded: Stories.loaded(),
           state: Engine.state(),
           seed: integer(),
-          version: non_neg_integer()
+          version: non_neg_integer(),
+          budget: non_neg_integer(),
+          spent: non_neg_integer(),
+          inquest: :none | :asking | :mode | {:wanting, String.t(), pos_integer() | nil},
+          looked: %{String.t() => %{link: String.t(), at: pos_integer() | nil}},
+          nibs: [nib_visit()]
+        }
+
+  @typedoc """
+  One Nib shown: the version of its `nib_shown`, the passage, the engine
+  state there, and the label of what the Linker chose there (once they have).
+  """
+  @type nib_visit :: %{
+          version: pos_integer(),
+          nib: String.t(),
+          state: Engine.state(),
+          chose: String.t() | nil
         }
 
   @doc """
@@ -49,7 +82,8 @@ defmodule Inklinks.Reading do
         inklink_id: inklink_id,
         loaded: loaded,
         state: state,
-        seed: seed
+        seed: seed,
+        budget: Engine.call(:meta, [loaded.story]).inquests
       }
 
       view = view(reading)
@@ -61,11 +95,11 @@ defmodule Inklinks.Reading do
           "ir" => loaded.entry.ir,
           "ir_sha256" => loaded.sha256,
           "engine" => inspect(Engine.impl()),
-          "inquests" => Engine.call(:meta, [loaded.story]).inquests
+          "inquests" => reading.budget
         }
       }
 
-      append(reading, [started | shown(view)])
+      record(reading, [started | shown(view)])
     end
   end
 
@@ -94,13 +128,18 @@ defmodule Inklinks.Reading do
       loaded: loaded,
       state: state,
       seed: seed,
-      version: first.stream_version
+      version: first.stream_version,
+      budget: first.data["inquests"] || 0
     }
 
     Enum.reduce_while(rest, {:ok, reading}, fn event, {:ok, reading} ->
       case redo(reading, event) do
-        {:ok, state} -> {:cont, {:ok, %{reading | state: state, version: event.stream_version}}}
-        {:error, reason} -> {:halt, {:error, {:replay_failed, event.stream_version, reason}}}
+        {:ok, state} ->
+          reading = evolve(%{reading | state: state, version: event.stream_version}, event)
+          {:cont, {:ok, reading}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:replay_failed, event.stream_version, reason}}}
       end
     end)
   end
@@ -109,7 +148,94 @@ defmodule Inklinks.Reading do
   defp redo(reading, %Event{type: "link_taken", data: %{"link" => link}}),
     do: Engine.call(:take, [reading.loaded.story, reading.state, link])
 
+  defp redo(reading, %Event{type: "fork_taken", data: %{"fork" => fork} = data}),
+    do: Engine.call(:take_fork, [reading.loaded.story, state_at(reading, data["back_to"]), fork])
+
   defp redo(reading, _event), do: {:ok, reading.state}
+
+  # What each event does to the reading's own fields: where flow D stands,
+  # which forks were looked at, how many Inquests are spent. Used both when
+  # replaying the log and after appending, so live and rebuilt agree.
+  defp evolve(reading, %{type: type, data: data} = event) do
+    case type do
+      "nib_shown" ->
+        visit = %{version: version_of(event), nib: data["nib"], state: reading.state, chose: nil}
+        %{reading | inquest: :none, looked: %{}, nibs: [visit | reading.nibs]}
+
+      type when type in ["link_taken", "fork_taken"] ->
+        reading =
+          if type == "fork_taken", do: %{reading | spent: reading.spent + 1}, else: reading
+
+        chosen(reading, data["back_to"], data["label"])
+
+      "inquest_opened" ->
+        %{reading | inquest: :asking}
+
+      "inquest_turned_down" ->
+        %{reading | inquest: :none}
+
+      "inquest_mode_entered" ->
+        %{reading | inquest: :mode}
+
+      "fork_looked" ->
+        look = %{link: data["link"], at: data["back_to"]}
+        %{reading | looked: Map.put(reading.looked, data["fork"], look)}
+
+      "wanted_instead_opened" ->
+        %{reading | inquest: {:wanting, data["link"], data["back_to"]}}
+
+      "inquest_mode_left" ->
+        %{reading | inquest: :none}
+
+      _ ->
+        reading
+    end
+  end
+
+  defp version_of(%{stream_version: v}), do: v
+
+  # Note what was chosen at a Nib: the current one, or, for a fork asked
+  # for from a later Nib, the earlier visit it went back to. Only the first
+  # choice counts.
+  defp chosen(reading, back_to, label) do
+    target = back_to || hd(reading.nibs).version
+
+    nibs =
+      Enum.map(reading.nibs, fn
+        %{version: ^target, chose: nil} = visit -> %{visit | chose: label}
+        visit -> visit
+      end)
+
+    %{reading | nibs: nibs}
+  end
+
+  @doc """
+  The engine state at an earlier Nib, by the version of its `nib_shown`;
+  the current state for `nil`.
+  """
+  @spec state_at(t(), pos_integer() | nil) :: Engine.state()
+  def state_at(reading, nil), do: reading.state
+  def state_at(reading, version), do: Enum.find(reading.nibs, &(&1.version == version)).state
+
+  @doc """
+  Where an Inquest can look from the current Nib: the Nib itself (`at:
+  nil`), then, for each passage whose forks may be asked for from here, the
+  latest visit to it before now (`at:` that visit's version).
+  """
+  @spec places(t()) :: [nib_visit() | map()]
+  def places(%__MODULE__{nibs: [here | earlier]} = reading) do
+    remote =
+      for passage <- Engine.call(:asked_from, [reading.loaded.story, here.nib]),
+          visit = Enum.find(earlier, &(&1.nib == passage)),
+          visit != nil,
+          do: Map.put(visit, :at, visit.version)
+
+    [Map.put(here, :at, nil) | remote]
+  end
+
+  @doc "Inquests left in this reading: the budget, less the forks taken."
+  @spec remaining(t()) :: non_neg_integer()
+  def remaining(%__MODULE__{budget: budget, spent: spent}), do: budget - spent
 
   @doc "What the Linker sees now."
   @spec view(t()) :: Engine.view()
@@ -131,9 +257,52 @@ defmodule Inklinks.Reading do
         data: %{"link" => link_id, "nib" => before.nib, "label" => plain(label)}
       }
 
-      reading = %{reading | state: state}
-      append(reading, [taken | shown(view(reading))])
+      reading_after = %{reading | state: state}
+
+      record(
+        reading_after,
+        leaving(reading, "took_link") ++ [taken | shown(view(reading_after))]
+      )
     end
+  end
+
+  @doc """
+  The events that close flow D when the Linker moves on without a fork:
+  each fork looked at is declined, and Inquest mode is left. Nothing when
+  the reading is not in Inquest mode.
+  """
+  @spec leaving(t(), String.t()) :: [map()]
+  def leaving(%__MODULE__{inquest: :none}, _reason), do: []
+  def leaving(%__MODULE__{inquest: :asking}, _reason), do: []
+
+  def leaving(%__MODULE__{} = reading, reason) do
+    nib = view(reading).nib
+
+    declined(reading, reason) ++
+      [%{type: "inquest_mode_left", data: %{"nib" => nib, "reason" => reason}}]
+  end
+
+  @doc "A `fork_declined` for each fork looked at in this Inquest mode, except `but`."
+  @spec declined(t(), String.t(), String.t() | nil) :: [map()]
+  def declined(%__MODULE__{} = reading, by, but \\ nil) do
+    nib = view(reading).nib
+
+    for {fork, look} <- Enum.sort(reading.looked), fork != but do
+      data = %{"nib" => nib, "link" => look.link, "fork" => fork, "by" => by}
+      %{type: "fork_declined", data: located(reading, look.at, data)}
+    end
+  end
+
+  @doc """
+  Adds where a fork was asked for, when it was not the current Nib: the
+  earlier passage (`at`) and the version of its visit (`back_to`).
+  """
+  @spec located(t(), pos_integer() | nil, map()) :: map()
+  def located(_reading, nil, data), do: data
+
+  def located(reading, version, data) do
+    visit = Enum.find(reading.nibs, &(&1.version == version))
+    Map.merge(data, %{"at" => visit.nib, "back_to" => version})
   end
 
   @doc """
@@ -160,8 +329,9 @@ defmodule Inklinks.Reading do
 
   # -- recording -----------------------------------------------------------------
 
+  @doc false
   # What showing a view records: the Nib, and when it ends something.
-  defp shown(view) do
+  def shown(view) do
     nib = %{
       type: "nib_shown",
       data: %{
@@ -177,7 +347,12 @@ defmodule Inklinks.Reading do
     Enum.reject([nib, ending, finished], &(&1 in [nil, false]))
   end
 
-  defp append(reading, events) do
+  @doc """
+  Appends events to the reading's stream, after the version it was loaded
+  at, and applies them to the reading. The one way anything is recorded.
+  """
+  @spec record(t(), [map()]) :: {:ok, t()} | {:error, term()}
+  def record(reading, events) do
     stream = %{
       type: "reading",
       id: reading.id,
@@ -186,8 +361,12 @@ defmodule Inklinks.Reading do
     }
 
     case Events.append(stream, reading.version, events) do
-      {:ok, stored} -> {:ok, %{reading | version: List.last(stored).stream_version}}
-      {:error, reason} -> {:error, reason}
+      {:ok, stored} ->
+        reading = Enum.reduce(stored, reading, &evolve(&2, &1))
+        {:ok, %{reading | version: List.last(stored).stream_version}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
