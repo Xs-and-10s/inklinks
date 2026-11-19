@@ -10,12 +10,6 @@ defmodule Inklinks.Insights do
   """
   alias Inklinks.Repo
 
-  # A Linker's own actions: the end of their time on a Nib. System events
-  # (ending_reached, rating_asked, reading_finished…) are written in the same
-  # moment as the Nib and say nothing about reading time.
-  @actions ~w(link_taken fork_taken inquest_opened fork_looked wanted_instead_opened
-              inquest_mode_left rating_given rating_dismissed)
-
   @doc "Where readers stop: abandoned readings, by the Nib they stopped at."
   @spec stops(String.t()) :: [%{nib: String.t(), readings: integer()}]
   def stops(inklink) do
@@ -31,8 +25,10 @@ defmodule Inklinks.Insights do
   end
 
   @doc """
-  Time per Nib: from `nib_shown` to the Linker's next action, as a median in
-  seconds, over every showing that had one.
+  Time per Nib: from `nib_shown` to the Linker's next action (the next event
+  whose actor is `linker`), as a median in seconds, over every showing that
+  had one. Engine and platform events written in the same moment do not
+  count.
   """
   @spec time_per_nib(String.t()) :: [
           %{nib: String.t(), median_seconds: float(), showings: integer()}
@@ -47,13 +43,13 @@ defmodule Inklinks.Insights do
         SELECT type, data,
                extract(epoch FROM lead(occurred_at) OVER w - occurred_at)::float AS secs
         FROM events
-        WHERE inklink_id = $1 AND (type = 'nib_shown' OR type = ANY($2))
+        WHERE inklink_id = $1 AND (type = 'nib_shown' OR actor = 'linker')
         WINDOW w AS (PARTITION BY stream_id ORDER BY stream_version)
       ) t
       WHERE type = 'nib_shown' AND secs IS NOT NULL
       GROUP BY 1 ORDER BY 1
       """,
-      [inklink, @actions],
+      [inklink],
       fn [nib, median, n] -> %{nib: nib, median_seconds: median, showings: n} end
     )
   end

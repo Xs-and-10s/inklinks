@@ -462,7 +462,10 @@ defmodule Inklinks.Reading do
       inklink_id: reading.inklink_id
     }
 
-    case Events.append(stream, reading.version, resumed(reading) ++ events) do
+    # Every event is checked against the catalogue and stamped with its actor.
+    events = Enum.map(resumed(reading) ++ events, &Inklinks.Events.Catalog.stamp!/1)
+
+    case Events.append(stream, reading.version, events) do
       {:ok, stored} ->
         reading = Enum.reduce(stored, reading, &evolve(&2, &1))
         {:ok, %{reading | version: List.last(stored).stream_version}}

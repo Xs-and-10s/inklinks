@@ -67,7 +67,10 @@ defmodule Inklinks.Abandonment do
         data: %{"nib" => nib, "idle_seconds" => DateTime.diff(now, last_at)}
       }
 
-      match?({:ok, _}, Events.append(stream, version, [abandoned]))
+      match?(
+        {:ok, _},
+        Events.append(stream, version, [Inklinks.Events.Catalog.stamp!(abandoned)])
+      )
     end)
   end
 
