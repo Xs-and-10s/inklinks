@@ -4,13 +4,15 @@ The bridge to the Rust interpreter is undecided: a Rustler NIF (which must
 not block the BEAM's schedulers) or a port or sidecar service. WASM in the
 browser is ruled out, because it would put the forks in the client. These
 notes record what the platform actually asks of an engine, how often, with
-what, and what it needs back. They decide the bridge.
+what, and what it needs back, and end with a recommendation (§ "The
+bridge").
 
 The contract is `Inklinks.Engine` (`lib/inklinks/engine.ex`). Every call
 goes through `Inklinks.Engine.call/2`, which wraps it in a telemetry span
 (`[:inklinks, :engine, callback]`), so the counts below are measured, not
-guessed. Status: measured on the stub with Ex 3 (milestone 2); Inquest
-calls counted on the Littlejon fixture (milestone 3).
+guessed. Status: final for this slice. Measured on the stub with Ex 3
+(milestone 2); Inquest calls counted again on the Littlejon fixture in
+milestone 5, through the telemetry events.
 
 ## The callbacks
 
@@ -19,7 +21,7 @@ calls counted on the Littlejon fixture (milestone 3).
 | `load/1` | the IR file's bytes | a story handle, or `{:unsupported, reasons}` |
 | `meta/1` | story | title, kind, mode, Inquest budget |
 | `start/2` | story, seed | state |
-| `view/2` | story, state | the Nib's Ink by passage, its canon Links, ending, done |
+| `view/2` | story, state | the Nib's Ink by passage, its offered Links, ending, done |
 | `take/3` | story, state, Link id | state, or `:not_offered` |
 | `asked_from/2` | story, Nib | passages whose forks may be asked for from this Nib (static, from `inquest.from`) |
 | `forks?/3` | story, state, Nib asked from | yes or no: may a fork be taken here, asking from that Nib? |
@@ -43,16 +45,23 @@ then `take` for each `link_taken`.
 | Open a reading (`GET /readings/:id`), *n* Links in | `start` ×1, `take` ×*n*, `view` ×1 | the rebuild |
 | Take a Link, *n* Links in | `start` ×1, `take` ×*n* (rebuild), then `take` ×1 and `view` ×3 | the rebuild runs in `authorize/2` before the event |
 
-Inquests (milestone 3) add, on top of the rebuild every event pays
-(`start` ×1, then `take` or `take_fork` ×*n*):
+Inquests add, on top of the rebuild every request pays (`start` ×1, then
+`take` or `take_fork` ×*n*). Counted on Littlejon (milestone 5), Inquest
+asked at ch2:
 
-| Request | Engine calls |
+| Step | Engine calls |
 |---|---|
+| Start a reading (first ever: the story is loaded) | `load` ×1, `meta` ×1, `start` ×1, `view` ×1 |
 | Press Inquest | `view` ×1 |
-| Answer or skip the box | `asked_from` ×1, `forks?` ×1 per place (the Nib, and each earlier visit) |
-| Open a Link (hover, focus or first tap) | `asked_from` ×1, `view` ×1 per place, `forks` ×1: **one Link's forks cross, for one look** |
-| Take a fork | `forks` ×1, `take_fork` ×1 (from the earlier visit's state when going back), `view` ×2 |
-| Leave Inquest mode, or answer "what did you want instead" | `view` ×1–2 |
+| Answer or skip the box | `asked_from` ×1, `forks?` ×1 per place (the Nib, and each earlier visit), `view` ×1 |
+| Open a Link (hover, focus or first tap), a group of two forks | `asked_from` ×1, `forks` ×1, `view` ×2: **one Link's forks cross, for one look** |
+| Take a fork | `forks` ×1, `take_fork` ×1 (from the earlier visit's state when going back), `view` ×3 |
+| Take a Link | `take` ×1, `view` ×2 |
+| Rebuild after a fork and a Link | `start` ×1, `take_fork` ×1, `take` ×1 |
+
+The `view`s are the platform reading the state it already holds (the Nib's
+Links to check a choice, the Links to list): in the stub they cost 2 µs,
+and in Rust they must stay pure reads of a stored view, never a re-render.
 
 A look is the only call made on hover, so it is the one that must be fast:
 a reader moving the mouse down a list of Links makes one request per Link.
@@ -82,8 +91,103 @@ of moves it is the first thing to fix.
 | Rebuilding a finished reading (9 Links), engine only | ≈ 1.1 ms |
 | The same, with the event query, in dev with debug logging | ≈ 12 ms |
 | State size (`:erlang.external_size`) | 2.4 KB |
+| `forks?/3` (Littlejon) | 0.7 µs |
+| `forks/4`, a group of two (Littlejon) | 6 µs |
+| Rebuilding a Littlejon reading two steps in, with the event query and the story cache, dev | ≈ 17 ms (engine under 1 ms; the rest not profiled) |
 
-## What this says about the bridge
+## What a Rust engine must provide
+
+The calls above, plus two that the platform will want as soon as the
+engine is real. A sketch of the crate's surface, which the bridge then
+wraps (names are the interpreter's to choose):
+
+```rust
+pub struct Story(/* parsed IR, immutable, Send + Sync */);
+pub struct State(/* one world: values, lists, aka, visits, rng, view */);
+
+impl Story {
+    pub fn load(ir_json: &[u8]) -> Result<Story, Vec<Unsupported>>;
+    pub fn meta(&self) -> Meta;                       // title, kind, mode, inquests
+    pub fn start(&self, seed: u64) -> State;
+    pub fn take(&self, s: &State, link: &str) -> Result<State, NotOffered>;
+    pub fn asked_from(&self, nib: &str) -> &[String]; // static, from inquest.from
+    pub fn forks_any(&self, s: &State, from: &str) -> bool;
+    pub fn forks(&self, s: &State, link: &str, from: &str) -> Vec<Fork>;
+    pub fn take_fork(&self, s: &State, fork: &str) -> Result<State, NotOffered>;
+
+    // New for the bridge:
+    pub fn replay(&self, seed: u64, actions: &[Action], upto: Option<usize>)
+        -> Result<Vec<State>, Replay>;                // one State per Nib shown
+    pub fn snapshot(&self, s: &State) -> Vec<u8>;     // versioned, stable bytes
+    pub fn restore(&self, bytes: &[u8]) -> Result<State, Snapshot>;
+}
+
+impl State {
+    pub fn view(&self) -> &View;                      // stored on arrival
+}
+
+pub enum Action { Link(String), Fork { fork: String, back_to: Option<usize> } }
+```
+
+- **Immutable states.** `take` returns a new `State` and leaves the old one
+  usable: going back takes a fork from an earlier state, and a stale
+  request must not see a later one. Structural sharing (`im`, or `Arc`
+  around the big parts) keeps that cheap.
+- **`replay`** turns the per-request rebuild into one call, returns the
+  per-Nib states that going back needs (§5 of events.md), and fixes the
+  *n*² cost of rebuilding on every request.
+- **`snapshot`/`restore`** let the platform keep a snapshot beside the log
+  (every *k* events, or at each `nib_shown`) and replay only what follows.
+  Only needed once readings get long (games, cohort play); a story never
+  will.
+- **Errors are data**: `NotOffered`, `Unsupported` with reasons the
+  library can show ("Not playable yet: …"), never a panic across the
+  boundary.
+
+## The bridge: a NIF, with a sidecar kept possible
+
+**Recommendation: Rustler NIF.** The numbers decide it:
+
+- Every call but `load` is microseconds (the stub, in Elixir, is 0.1–0.2 ms
+  per `take` and µs for the rest; Rust will be faster). That is far under
+  the 1 ms a NIF may hold a normal scheduler, so `take`, `view`, `forks?`,
+  `forks` and `take_fork` run as plain NIFs.
+- `load` (parse and check a whole IR file, 3 ms for Ex 3), and `replay` of
+  a long reading, run on **dirty CPU schedulers**
+  (`#[rustler::nif(schedule = "DirtyCpu")]`).
+- `Story` and `State` cross as **resources** (`ResourceArc`): a pointer,
+  freed by the BEAM's GC. The story is passed on every call and costs
+  nothing; holding one `State` per Nib shown for going back is just
+  memory, about what the Elixir stub already holds.
+- Views cross as maps built once per arrival (`NifMap`/`NifStruct`), the
+  shapes in `Inklinks.Engine`'s types, so `Inklinks.Web.Ink` renders them
+  unchanged.
+- The `Inklinks.Engine` behaviour stays the seam: `Inklinks.Engine.Rust`
+  implements it, the stub stays for tests and as an oracle (a property
+  test runs both on the same seed and actions and compares views, which is
+  how the Rust engine proves it plays Ex 1–4 the same).
+
+**Why not a sidecar first.** A sidecar (a port, or a service over a socket)
+buys crash isolation: a panic or a runaway loop in the interpreter cannot
+take the node down. It costs a round trip per call, serialization of every
+view, a story id the sidecar must resolve, and state that lives in another
+process (so going back needs `replay` or held handles there). With a
+rebuild being 1 + *n* calls, it is only reasonable once `replay` exists.
+
+**The risks of a NIF, and their answers:**
+
+| Risk | Answer |
+|---|---|
+| A panic kills the VM | Rustler catches panics and raises; keep `unsafe` out of the interpreter |
+| An infinite loop in a story (a `next:` cycle, a runaway `[once]`) | A step limit in the interpreter, returned as an error, never a hang |
+| A slow call blocks a scheduler | Dirty schedulers for `load` and `replay`; a test that times every other call under 1 ms on the largest example |
+| Memory from held states | States are resources; a reading's are dropped with its request |
+
+If isolation turns out to matter (untrusted IR uploaded by Inkers is the
+likely trigger), the same crate goes behind a port with `replay` as its
+main call, and the platform's seam does not change.
+
+## What the counts say
 
 - **Calls are small and frequent, not large and rare.** A rebuild is
   1 + *n* calls in a row with the same story handle. Over a NIF that is

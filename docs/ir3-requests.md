@@ -7,6 +7,18 @@ at the millpond) to the opening of ch4, with two forks for one Link, a fork
 asked for from a later chapter, and ch3's own fork. Every field the fixture
 uses that IR 2 lacks is listed here.
 
+| # | Request | Needed for | Size |
+|---|---|---|---|
+| 1 | `inquest` field on forks: `stands_in_for`, `by`, `from`; retire `kind: "inquest"` | Inquests at all | new field, two checks |
+| 2 | Link ids that survive revisions | every Inker report, every event naming a Link | compiler change to `id` |
+| 3 | Styled runs instead of asterisks, labels as parts | rendering without parsing Inkjot | new part kind |
+| 4 | `state` declarations | Littlejon (v0.6) | new `declare` kind |
+| 5 | Passage titles (optional) | the earlier-visit fallback, Inker reports | optional field |
+
+Ordered by what blocks most. 1 and 2 are the ones the platform cannot
+work around in a real Inklink; 3 and 4 the stub works around today; 5 is
+polish.
+
 ## 1. Inquests: a fork is a Link with an `inquest` field
 
 ```json
@@ -72,11 +84,17 @@ visit's offered Links ("Back when you chose …"), and, if a fork is taken,
 replays the reading to that visit and takes it there. A fork without `from`
 can be asked for only from its own passage.
 
-### Open question
+### How far back (decided 18 Nov)
 
-- **How far back.** `from` names passages, so the Inker decides. Should a
-  fork asked for from a passage the reading has visited twice go back to
-  the latest visit (what the platform does) or let the Linker pick?
+`from` names passages, so the Inker decides which. When the reading has
+visited that passage more than once, the platform offers the visits where
+the Linker chose differently, newest first: visits with the same choice
+collapse into the latest (going further back for the same choice only
+undoes more), at most three are offered, and each says how many choices
+going back would undo. Tested on `test/fixtures/inklinks/the-well.json`, a
+hub the reading returns to. Nothing in the IR changes for this; it is
+recorded so the interpreter's own Inquest support (if it ever has one)
+agrees.
 
 ## 2. Link ids that survive revisions
 
@@ -127,6 +145,18 @@ v0.6's `state widow_freed: no` appears as
 read as a bare name (`{"not": "widow_freed"}`) and set as one
 (`{"do": "set", "target": "widow_freed", "value": true}`). The stub
 treats it as IR 2 treats a `fact` without `belongs_to`.
+
+## 5. Passage titles (optional)
+
+```json
+{ "type": "passage", "name": "ch2_alt", "title": "The Millpond", "...": "…" }
+```
+
+From `:: ch2_alt "The Millpond"`, or a chapter heading the Inker already
+writes. Two places want a human name where the platform has only a
+passage id: the earlier-visit line when no choice can name it (today:
+"Earlier:"), and Inker reports ("where readers stop: `ch2_alt`"). Absent
+means the platform falls back as it does now.
 
 ## What the fixture does not need yet
 

@@ -88,3 +88,30 @@ The Links a Nib shows are **offered Links**; a **fork** is hidden behind
 one. "Canon" stays a story word, for the Inker's main line. The platform's
 event data says `link` where it said `canon`. Worth using the same words in
 run.md and the Inkjot docs.
+
+## 8. What the engine needs to grow (from engine-calls.md)
+
+For the bridge, in order:
+
+- **`replay(story, seed, actions, upto)`**, returning one state per Nib
+  shown: the platform rebuilds a reading on every request, and going back
+  needs earlier states.
+- **Immutable states** (`take` returns a new one and the old stays usable).
+- **A step limit**: a `next:` cycle or runaway loop returns an error, never
+  hangs a scheduler.
+- **Determinism across versions**: the same IR, seed and actions give the
+  same views, or the engine version goes into `reading_started` and old
+  readings replay on the version they began on.
+- **`snapshot`/`restore`**, later, for long games.
+
+The recommendation is a Rustler NIF (calls are microseconds; `load` and
+`replay` on dirty schedulers; states as resources), with the stub kept as
+an oracle in a property test against the Rust engine.
+
+## 9. Engine events in the reading's log (from events.md)
+
+The interpreter's own events (checkpoints, rewinds, turn ends, deaths, and
+in cohort play locks, claims and clashes) should join the reading's stream
+with `actor: engine`, under the envelope and guarantees in events.md §2–3.
+Adding one means adding it to `Inklinks.Events.Catalog` with its keys.
+
