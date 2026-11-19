@@ -31,7 +31,8 @@ defmodule Inklinks.ReadingTest do
       assert shown.data == %{
                "nib" => "arrival",
                "passed" => [],
-               "links" => ~w(arrival#1 arrival#2 arrival#3)
+               "links" => ~w(arrival#1 arrival#2 arrival#3),
+               "visit" => 1
              }
     end
 
@@ -88,7 +89,7 @@ defmodule Inklinks.ReadingTest do
       reading = play_to_end(reading)
 
       types = reading.id |> Events.read_stream() |> Enum.map(& &1.type)
-      assert Enum.take(types, -3) == ~w(nib_shown ending_reached reading_finished)
+      assert Enum.take(types, -4) == ~w(nib_shown ending_reached rating_asked reading_finished)
       assert List.last(Events.read_stream(reading.id)).data == %{"ending" => "the_list"}
       assert Reading.current(reader, @ex3) == nil
     end
@@ -118,6 +119,9 @@ defmodule Inklinks.ReadingTest do
         {:ok, rebuilt} = Reading.load(reading.id, reader)
         assert Reading.view(rebuilt) == Reading.view(live)
         assert rebuilt.version == live.version
+
+        assert {rebuilt.rating, rebuilt.ending, rebuilt.forked, rebuilt.abandoned} ==
+                 {live.rating, live.ending, live.forked, live.abandoned}
 
         # Every link_taken names a Link the Nib shown just before it offered.
         reading.id

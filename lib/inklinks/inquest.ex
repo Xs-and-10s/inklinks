@@ -168,8 +168,14 @@ defmodule Inklinks.Inquest do
       taken = %{type: "fork_taken", data: Reading.located(reading, look.at, data)}
       declined = Reading.declined(reading, "took_another_fork", fork)
 
-      after_fork = %{reading | state: state}
-      Reading.record(after_fork, [taken | declined] ++ Reading.shown(Reading.view(after_fork)))
+      # Taking a fork puts "your path" in the ratings box, even when the fork
+      # leads straight to a finale.
+      after_fork = %{reading | state: state, forked: true}
+
+      Reading.record(
+        after_fork,
+        [taken | declined] ++ Reading.shown(after_fork, Reading.view(after_fork))
+      )
     end
   end
 

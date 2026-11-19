@@ -36,3 +36,6 @@ config :phoenix,
 
 # Test-only Inklinks (fixtures the library does not ship), beside priv/inklinks.
 config :inklinks, :extra_catalog_dirs, ["test/fixtures/inklinks"]
+
+# Abandoned readings are swept by hand in tests.
+config :inklinks, :sweep_every, nil
