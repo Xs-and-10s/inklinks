@@ -201,6 +201,9 @@ defmodule InklinksWeb.ReadingPage do
     end
   end
 
+  defp choices(1), do: "1 choice"
+  defp choices(n), do: "#{n} choices"
+
   defp inquests(1), do: "1 Inquest"
   defp inquests(n), do: "#{n} Inquests"
 
@@ -307,6 +310,7 @@ defmodule InklinksWeb.ReadingPage do
       <nav :for={place <- @earlier} aria-labelledby={"earlier-#{place.at}"} data-earlier>
         <h2 id={"earlier-#{place.at}"}>
           {if place.chose, do: "Back when you chose “#{place.chose}”", else: "Earlier"}
+          <small>(undoes {choices(place.back)})</small>
         </h2>
         <ul>
           <.link_item

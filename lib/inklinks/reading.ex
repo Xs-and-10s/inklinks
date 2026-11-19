@@ -217,20 +217,35 @@ defmodule Inklinks.Reading do
   def state_at(reading, nil), do: reading.state
   def state_at(reading, version), do: Enum.find(reading.nibs, &(&1.version == version)).state
 
+  @max_earlier 3
+
   @doc """
   Where an Inquest can look from the current Nib: the Nib itself (`at:
-  nil`), then, for each passage whose forks may be asked for from here, the
-  latest visit to it before now (`at:` that visit's version).
-  """
-  @spec places(t()) :: [nib_visit() | map()]
-  def places(%__MODULE__{nibs: [here | earlier]} = reading) do
-    remote =
-      for passage <- Engine.call(:asked_from, [reading.loaded.story, here.nib]),
-          visit = Enum.find(earlier, &(&1.nib == passage)),
-          visit != nil,
-          do: Map.put(visit, :at, visit.version)
+  nil`), then the earlier visits the Linker may go back to, newest first.
 
-    [Map.put(here, :at, nil) | remote]
+  An earlier visit is offered when its passage has forks that may be asked
+  for from here (`inquest.from`) and, in that visit's state, a fork can
+  actually be taken. Visits where the Linker made the same choice collapse
+  into the latest of them (going further back for the same choice only
+  costs more), and at most #{@max_earlier} are offered. Each carries `back`:
+  how many choices going back would undo.
+  """
+  @spec places(t()) :: [map()]
+  def places(%__MODULE__{nibs: [here | earlier]} = reading) do
+    story = reading.loaded.story
+    passages = Engine.call(:asked_from, [story, here.nib])
+
+    remote =
+      earlier
+      |> Enum.with_index(1)
+      |> Enum.filter(fn {visit, _} ->
+        visit.nib in passages and Engine.call(:forks?, [story, visit.state, here.nib])
+      end)
+      |> Enum.uniq_by(fn {visit, _} -> {visit.nib, visit.chose} end)
+      |> Enum.take(@max_earlier)
+      |> Enum.map(fn {visit, back} -> Map.merge(visit, %{at: visit.version, back: back}) end)
+
+    [Map.merge(here, %{at: nil, back: 0}) | remote]
   end
 
   @doc "Inquests left in this reading: the budget, less the forks taken."

@@ -33,3 +33,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Test-only Inklinks (fixtures the library does not ship), beside priv/inklinks.
+config :inklinks, :extra_catalog_dirs, ["test/fixtures/inklinks"]
