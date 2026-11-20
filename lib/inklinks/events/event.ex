@@ -16,6 +16,7 @@ defmodule Inklinks.Events.Event do
     field :stream_version, :integer
     field :type, :string
     field :type_version, :integer, default: 1
+    field :origin, :string, default: "platform"
     field :data, :map, default: %{}
     field :reader_id, Ecto.UUID
     field :inklink_id, :string
@@ -31,6 +32,7 @@ defmodule Inklinks.Events.Event do
           stream_version: pos_integer(),
           type: String.t(),
           type_version: pos_integer(),
+          origin: String.t(),
           data: map(),
           reader_id: Ecto.UUID.t(),
           inklink_id: String.t() | nil,

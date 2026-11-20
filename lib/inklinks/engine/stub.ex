@@ -36,7 +36,7 @@ defmodule Inklinks.Engine.Stub do
   def view(_story, %World{view: view}), do: view
 
   @impl true
-  def take(%Story{} = story, %World{} = w, link_id) do
+  def take_link(%Story{} = story, %World{} = w, link_id) do
     case Enum.find(w.offered, &(&1["id"] == link_id)) do
       nil ->
         {:error, :not_offered}

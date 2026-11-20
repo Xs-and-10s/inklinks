@@ -4,7 +4,7 @@ defmodule Inklinks.Reading do
 
   The log is the record. A reading's engine state is rebuilt from it on
   every load: `start/2` with the seed `reading_started` recorded, then
-  `take/3` for each `link_taken`, in order. The engine is deterministic, so
+  `take_link/3` for each `link_taken`, in order. The engine is deterministic, so
   this always arrives where the Linker left off. (Rebuilding per request is
   the simplest thing that works; docs/engine-calls.md says what it costs.)
 
@@ -188,7 +188,7 @@ defmodule Inklinks.Reading do
 
   # Only the events that moved the reading change the engine's state.
   defp redo(reading, %Event{type: "link_taken", data: %{"link" => link}}),
-    do: Engine.call(:take, [reading.loaded.story, reading.state, link])
+    do: Engine.call(:take_link, [reading.loaded.story, reading.state, link])
 
   defp redo(reading, %Event{type: "fork_taken", data: %{"fork" => fork} = data}),
     do: Engine.call(:take_fork, [reading.loaded.story, state_at(reading, data["back_to"]), fork])
@@ -333,7 +333,7 @@ defmodule Inklinks.Reading do
     before = view(reading)
 
     with %{label: label} <- Enum.find(before.links, &(&1.id == link_id)) || {:error, :not_offered},
-         {:ok, state} <- Engine.call(:take, [reading.loaded.story, reading.state, link_id]) do
+         {:ok, state} <- Engine.call(:take_link, [reading.loaded.story, reading.state, link_id]) do
       taken = %{
         type: "link_taken",
         data: %{"link" => link_id, "nib" => before.nib, "label" => plain(label)}
@@ -462,7 +462,10 @@ defmodule Inklinks.Reading do
       inklink_id: reading.inklink_id
     }
 
-    case Events.append(stream, reading.version, resumed(reading) ++ events) do
+    # Every event is checked against the catalogue and stamped with its origin.
+    events = Enum.map(resumed(reading) ++ events, &Inklinks.Events.Catalog.stamp!/1)
+
+    case Events.append(stream, reading.version, events) do
       {:ok, stored} ->
         reading = Enum.reduce(stored, reading, &evolve(&2, &1))
         {:ok, %{reading | version: List.last(stored).stream_version}}

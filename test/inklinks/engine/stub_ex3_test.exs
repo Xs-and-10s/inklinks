@@ -171,7 +171,7 @@ defmodule Inklinks.Engine.StubEx3Test do
       Enum.find(view.links, &(label(&1) == wanted)) ||
         flunk("no Link #{inspect(wanted)} in #{inspect(labels(story, w))}")
 
-    {:ok, w} = Stub.take(story, w, link.id)
+    {:ok, w} = Stub.take_link(story, w, link.id)
     w
   end
 
@@ -187,7 +187,7 @@ defmodule Inklinks.Engine.StubEx3Test do
         view
 
       %{links: [first | _]} ->
-        {:ok, w} = Stub.take(story, w, first.id)
+        {:ok, w} = Stub.take_link(story, w, first.id)
         finish(story, w)
     end
   end

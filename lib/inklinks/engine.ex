@@ -111,7 +111,7 @@ defmodule Inklinks.Engine do
   @callback view(story(), state()) :: view()
 
   @doc "Takes an offered Link. Only a Link that `view/2` offers is accepted."
-  @callback take(story(), state(), link_id()) :: {:ok, state()} | {:error, :not_offered}
+  @callback take_link(story(), state(), link_id()) :: {:ok, state()} | {:error, :not_offered}
 
   @doc """
   Passages whose forks may be asked for from this Nib (`~ inquest from`),
@@ -136,7 +136,7 @@ defmodule Inklinks.Engine do
   @callback forks(story(), state(), link :: link_id(), from :: passage()) :: [link()]
 
   @doc """
-  Takes a fork, as `take/3` takes an offered Link. To take a fork asked for
+  Takes a fork, as `take_link/3` takes an offered Link. To take a fork asked for
   from a later Nib, the platform passes the state of that earlier visit:
   going back is the platform's replay, not the engine's.
   """

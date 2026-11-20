@@ -33,6 +33,7 @@ defmodule Inklinks.Events do
           required(:type) => String.t(),
           optional(:data) => map(),
           optional(:type_version) => pos_integer(),
+          optional(:origin) => String.t(),
           optional(:occurred_at) => DateTime.t()
         }
 
@@ -156,6 +157,7 @@ defmodule Inklinks.Events do
       stream_version: version,
       type: event.type,
       type_version: Map.get(event, :type_version, 1),
+      origin: Map.get(event, :origin, "platform"),
       data: Map.get(event, :data, %{}),
       reader_id: stream.reader_id,
       inklink_id: Map.get(stream, :inklink_id),
@@ -188,6 +190,7 @@ defmodule Inklinks.Events do
 
   defp valid_event?(%{type: type} = event) when is_binary(type) do
     Regex.match?(@type_format, type) and
+      Map.get(event, :origin, "platform") in ~w(linker engine platform) and
       is_map(Map.get(event, :data, %{})) and
       match?(v when is_integer(v) and v >= 1, Map.get(event, :type_version, 1))
   end
