@@ -86,6 +86,10 @@
 
     --measure: 34em;
     --radius: 0.4rem;
+    /* The path: offered Links blue, forks orange, paths left faded. */
+    --line-link: light-dark(oklch(52% 0.15 250), oklch(74% 0.12 250));
+    --line-fork: light-dark(oklch(64% 0.17 55), oklch(78% 0.15 60));
+    --line-start: var(--ink-muted);
   }
 }
 
@@ -569,3 +573,186 @@
     }
   }
 }
+
+/*
+  The path page. A git-graph, top to bottom: each row draws its own slice of
+  every line crossing it, so rows can grow with their text on a phone and
+  the lines still meet. Lane x = lane × --lane-w, centred; the dot sits on
+  the first line of text.
+*/
+@layer components {
+  [data-path] {
+    max-inline-size: var(--measure);
+    margin-inline: auto;
+    padding: var(--space-m);
+    display: grid;
+    gap: var(--space-m);
+
+    & > header p {
+      color: var(--ink-muted);
+    }
+
+    & [data-legend] {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs) var(--space-m);
+      font-size: var(--step--1);
+      color: var(--ink-muted);
+
+      & li::before {
+        content: "";
+        display: inline-block;
+        inline-size: 1.4em;
+        block-size: 0;
+        margin-inline-end: var(--space-xs);
+        vertical-align: middle;
+        border-block-start: 3px solid var(--c);
+      }
+      & [data-kind="link"] { --c: var(--line-link); }
+      & [data-kind="fork"] { --c: var(--line-fork); }
+      & [data-kind="left"]::before {
+        border-block-start: 3px dashed var(--ink-muted);
+        opacity: 0.6;
+      }
+    }
+
+    & ol {
+      --lane-w: 1.25rem;
+      --stroke: 3px;
+      --dot: 0.8rem;
+      --dot-y: 0.5lh;
+      list-style: none;
+      padding: 0;
+    }
+
+    & ol > li {
+      display: grid;
+      grid-template-columns: calc(var(--lanes) * var(--lane-w) + var(--space-s)) 1fr;
+
+      & > div {
+        padding-block-end: var(--space-m);
+        display: grid;
+        gap: var(--space-xs);
+        min-inline-size: 0;
+      }
+    }
+
+    & [data-graph] {
+      position: relative;
+
+      & > span {
+        --x: calc(var(--lane) * var(--lane-w) + var(--lane-w) / 2);
+        --c: var(--line-link);
+        position: absolute;
+      }
+
+      & [data-kind="fork"] { --c: var(--line-fork); }
+
+      /* Straight slices: a zero-width box with a left border, so a path
+         left can be dashed like the rest. */
+      & [data-seg="through"],
+      & [data-seg="top"],
+      & [data-seg="bottom"] {
+        inset-inline-start: calc(var(--x) - var(--stroke) / 2);
+        border-inline-start: var(--stroke) var(--style, solid) var(--c);
+      }
+      & [data-seg="through"] { inset-block: 0; }
+      & [data-seg="top"] { inset-block: 0 calc(100% - var(--dot-y)); }
+      & [data-seg="bottom"] { inset-block: var(--dot-y) 0; }
+
+      /* Out of a dot into a lane to the right: across, then down. */
+      & [data-seg="elbow"] {
+        --x0: calc(var(--from) * var(--lane-w) + var(--lane-w) / 2);
+        inset-inline-start: var(--x0);
+        inline-size: calc(var(--x) - var(--x0) + var(--stroke) / 2);
+        inset-block: calc(var(--dot-y) - var(--stroke) / 2) 0;
+        border-block-start: var(--stroke) var(--style, solid) var(--c);
+        border-inline-end: var(--stroke) var(--style, solid) var(--c);
+        border-start-end-radius: calc(var(--lane-w) / 1.5);
+      }
+
+      /* Only the sides a slice draws: border-style on all four would
+         switch on the others at their default width. */
+      & [data-left] {
+        --style: dashed;
+        opacity: 0.45;
+      }
+
+      & [data-dot] {
+        --c: var(--line-start);
+        inset-inline-start: calc(var(--x) - var(--dot) / 2);
+        inset-block-start: calc(var(--dot-y) - var(--dot) / 2);
+        inline-size: var(--dot);
+        block-size: var(--dot);
+        border-radius: 50%;
+        background: var(--c);
+        box-shadow: 0 0 0 3px var(--paper);
+      }
+      & [data-dot][data-kind="link"] { --c: var(--line-link); }
+      & [data-dot][data-kind="fork"] { --c: var(--line-fork); }
+    }
+
+    & [data-arrival] {
+      font-weight: 600;
+    }
+
+    & [data-excerpt] {
+      font-family: var(--font-ink);
+      color: var(--ink-muted);
+    }
+
+    & [data-tag] {
+      justify-self: start;
+      font-size: var(--step--1);
+      font-weight: 600;
+      color: var(--ink-muted);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding-inline: var(--space-xs);
+    }
+    & [data-arrival] [data-tag] {
+      margin-inline-start: var(--space-xs);
+      font-weight: 400;
+    }
+
+    & [data-note],
+    & [data-not-taken] {
+      font-size: var(--step--1);
+      color: var(--ink-muted);
+    }
+
+    & [data-not-taken] > span:not(:last-child)::after {
+      content: " · ";
+    }
+
+    & > footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-m);
+    }
+  }
+}
+
+@layer states {
+  [data-path] ol > li {
+    &[data-live="false"] > div {
+      opacity: 0.7;
+    }
+
+    &[data-live="false"] [data-dot] {
+      opacity: 0.45;
+    }
+
+    &[data-ending] [data-dot],
+    &[data-here] [data-dot] {
+      box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--c);
+    }
+
+    &[data-ending] [data-tag="ending"] {
+      color: var(--ink);
+      border-color: var(--ink-muted);
+    }
+  }
+}
+

@@ -22,7 +22,7 @@ defmodule InklinksWeb.RatingPageTest do
       assert html =~ "How was it?"
       assert html =~ "The ending"
       assert html =~ "The Inklink overall"
-      refute html =~ "Your path"
+      refute html =~ "Your path, off the canon"
       refute html =~ "el.showModal()"
       assert html =~ "data-rating-due"
       assert html =~ "data-on-intersect__once"

@@ -411,6 +411,20 @@ defmodule Inklinks.Reading do
     |> Repo.one()
   end
 
+  @doc "The reader's latest finished reading of an Inklink, if there is one."
+  @spec last_finished(Ecto.UUID.t(), String.t()) :: Ecto.UUID.t() | nil
+  def last_finished(reader_id, inklink_id) do
+    from(e in Event,
+      where:
+        e.reader_id == ^reader_id and e.inklink_id == ^inklink_id and
+          e.type == "reading_finished",
+      order_by: [desc: e.position],
+      limit: 1,
+      select: e.stream_id
+    )
+    |> Repo.one()
+  end
+
   # -- recording -----------------------------------------------------------------
 
   @doc false

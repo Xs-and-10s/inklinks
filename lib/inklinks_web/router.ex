@@ -20,6 +20,7 @@ defmodule InklinksWeb.Router do
 
     get "/", LibraryController, :index
     post "/inklinks/:inklink_id/readings", ReadingController, :create
+    get "/readings/:id/path", PathController, :show
     dstar("/readings/:id", ReadingPage)
   end
 end
