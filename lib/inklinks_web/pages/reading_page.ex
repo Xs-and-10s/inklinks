@@ -409,6 +409,7 @@ defmodule InklinksWeb.ReadingPage do
         >
           Rate this ending
         </button>
+        <a href={"/readings/#{@reading.id}/path"}>Your path</a>
         <a href="/">Back to the library</a>
       </footer>
     </article>

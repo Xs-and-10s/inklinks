@@ -11,7 +11,8 @@ defmodule InklinksWeb.LibraryController do
         %{
           entry: entry,
           playable: playable(entry.id),
-          current: Reading.current(reader_id, entry.id)
+          current: Reading.current(reader_id, entry.id),
+          finished: Reading.last_finished(reader_id, entry.id)
         }
       end
 

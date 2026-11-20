@@ -51,8 +51,10 @@ cohort play.*
 
 ## The path map and the reading timeline
 
-*Platform. Next after the handoff; before playtesting. Does not need the
-real engine.*
+*Platform. The reading timeline is built (M6, `Inklinks.Timeline`,
+`/readings/:id/path`). The story map waits for IR 3 and a way to get the
+whole story as a graph from the engine (`graph/1`, or a documented IR
+subset): mention it to the compiler chat.*
 
 Two pictures, from data the log and the IR already hold:
 
@@ -67,10 +69,17 @@ Two pictures, from data the log and the IR already hold:
 - **Spoilers.** A Linker's view shows only forks they looked at. The
   platform keeps forks out of the page source on purpose; the map must
   not undo that.
-- **Cost.** About a milestone. The hard part is layout: a hand-rolled
-  layered layout (rank by longest path, order by barycenter) as
-  server-side SVG keeps the no-build stack; dagre or ELK would be a
+- **How the timeline is drawn** (M6): rows in the order the Nibs were
+  shown, the live path straight down lane 0, each path left in its own
+  lane to the right, like `git log --graph`. Each row draws its own slice
+  of every line in CSS, so rows grow with their text on a phone. At most
+  one lane per time the Linker went back, so it stays narrow.
+- **The story map's cost.** About a milestone. The hard part is layout: a
+  hand-rolled layered layout (rank by longest path, order by barycenter)
+  as server-side SVG keeps the no-build stack; dagre or ELK would be a
   dependency.
+- **Not yet:** a `path_viewed` event (do readers look at their path?),
+  written from the page by a Datastar `data-init` post rather than on GET.
 
 ## MonkeyPaw, Ghostwriters and baking
 

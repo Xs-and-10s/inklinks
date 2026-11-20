@@ -1,0 +1,61 @@
+<Layouts.app>
+  <article data-path aria-labelledby="path-title">
+    <header>
+      <h1 id="path-title">Your path</h1>
+      <p>{@timeline.title}</p>
+      <p data-summary>{summary(@timeline)}</p>
+    </header>
+
+    <ul data-legend aria-label="Key">
+      <li data-kind="link">A Link you chose</li>
+      <li data-kind="fork">A fork you took with an Inquest</li>
+      <li data-kind="left">A path you went back from</li>
+    </ul>
+
+    <ol aria-label="Every Nib you were shown, in order" style={"--lanes: #{@timeline.lanes}"}>
+      <li
+        :for={row <- @timeline.rows}
+        data-live={to_string(row.live)}
+        data-here={row.here && "true"}
+        data-ending={row.ending && "true"}
+      >
+        <span data-graph aria-hidden="true">
+          <span
+            :for={line <- row.lines}
+            data-seg={line.seg}
+            data-kind={line.kind}
+            data-left={not line.live && "true"}
+            style={"--lane: #{line.lane}; --from: #{line.from}"}
+          ></span>
+          <span data-dot data-kind={row.via && row.via.kind} style={"--lane: #{row.lane}"}></span>
+        </span>
+        <div>
+          <p data-arrival>
+            {arrival(row)}
+            <span :if={not row.live} data-tag>A path you left</span>
+          </p>
+          <p :if={row.excerpt != ""} data-excerpt>{row.excerpt}</p>
+          <p :if={row.ending} data-tag="ending">An ending</p>
+          <p :if={row.here} data-tag="here">You are here</p>
+          <p :if={row.went_back} data-note>From here, you went back with an Inquest.</p>
+          <p :if={row.not_taken != []} data-not-taken>
+            Not taken:
+            <span :for={item <- row.not_taken} data-kind={item.kind}>
+              {Reading.quoted(item.label)}<span :if={item.kind == :fork}> (a fork)</span>
+            </span>
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <footer>
+      <a :if={not @timeline.done} href={~p"/readings/#{@reading.id}"}>Back to your reading</a>
+      <form method="post" action={~p"/inklinks/#{@reading.inklink_id}/readings"}>
+        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+        <input type="hidden" name="again" value="true" />
+        <button>Read again</button>
+      </form>
+      <a href={~p"/"}>Back to the library</a>
+    </footer>
+  </article>
+</Layouts.app>

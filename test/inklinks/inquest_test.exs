@@ -9,7 +9,7 @@ defmodule Inklinks.InquestTest do
   use Inklinks.DataCase, async: true
   use ExUnitProperties
 
-  alias Inklinks.{Engine, Events, Inquest, Reading, Stories}
+  alias Inklinks.{Engine, Events, Inquest, Reading, Steps, Stories}
 
   @fixture "ex4-littlejon-thornbury"
   @free %{id: "free_the_widow", label: ["Free her, unseen"]}
@@ -236,7 +236,7 @@ defmodule Inklinks.InquestTest do
   # -- the invariant -----------------------------------------------------------
 
   property "an Inquest is spent exactly when a fork is taken" do
-    check all(steps <- list_of(step(), max_length: 40), max_runs: 50) do
+    check all(steps <- list_of(Steps.step(), max_length: 40), max_runs: 50) do
       {:ok, start} = Reading.start(Ecto.UUID.generate(version: 7), @fixture)
 
       final =
@@ -244,7 +244,7 @@ defmodule Inklinks.InquestTest do
           before_remaining = Reading.remaining(reading)
           before_taken = forks_taken(reading)
 
-          reading = run(step, reading)
+          reading = Steps.run(step, reading)
 
           taken_now = forks_taken(reading) - before_taken
           # Remaining falls by exactly the forks taken in this step, never below 0
@@ -288,50 +288,6 @@ defmodule Inklinks.InquestTest do
       assert regenerated(events) == for(%{origin: "engine"} = e <- events, do: {e.type, e.data})
     end
   end
-
-  # Everything a Linker (or a forged request) might try, in any order: at
-  # the current Nib, or at an earlier one (the first earlier place, if any).
-  defp step do
-    one_of([
-      constant(:open),
-      tuple({constant(:answer), one_of([constant(nil), string(:printable, max_length: 30)])}),
-      tuple({constant(:look), link_id(), boolean()}),
-      tuple({constant(:take_fork), link_id()}),
-      tuple({constant(:want), link_id(), boolean()}),
-      tuple({constant(:answer_wanted), one_of([constant(nil), constant("instead")])}),
-      constant(:leave),
-      tuple({constant(:take), link_id()})
-    ])
-  end
-
-  defp link_id do
-    member_of(
-      ~w(obey_at_thornbury watch_what_unfolds free_the_widow speak_in_her_ear keep_the_book
-                 burn_the_book on_to_the_fens south_to_the_fens on_to_halde nonsense)
-    )
-  end
-
-  defp run(:open, r), do: ok(Inquest.open(r), r)
-  defp run({:answer, text}, r), do: ok(Inquest.answer(r, text), r)
-  defp run({:look, id, earlier?}, r), do: ok(Inquest.look(r, id, at(r, earlier?)), r)
-  defp run({:take_fork, id}, r), do: ok(Inquest.take(r, id), r)
-  defp run({:want, id, earlier?}, r), do: ok(Inquest.want(r, id, at(r, earlier?)), r)
-  defp run({:answer_wanted, text}, r), do: ok(Inquest.answer_wanted(r, text), r)
-  defp run(:leave, r), do: ok(Inquest.leave(r), r)
-  defp run({:take, id}, r), do: ok(Reading.take(r, id), r)
-
-  defp at(_r, false), do: nil
-
-  defp at(r, true) do
-    case Reading.places(r) do
-      [_, %{at: at} | _] -> at
-      _ -> nil
-    end
-  end
-
-  defp ok({:ok, reading}, _), do: reading
-  defp ok({:ok, reading, _}, _), do: reading
-  defp ok({:error, _}, reading), do: reading
 
   defp forks_taken(reading),
     do: reading.id |> Events.read_stream() |> Enum.count(&(&1.type == "fork_taken"))

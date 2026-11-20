@@ -38,6 +38,7 @@ Postgres is expected on `localhost` as `postgres`/`postgres`
 |---|---|
 | `lib/inklinks/events.ex` | The event log: append to a stream, read it back |
 | `lib/inklinks/events/catalog.ex` | Every event type, its origin and its keys |
+| `lib/inklinks/timeline.ex` | A reading's path as a tree, from the log (the path page) |
 | `lib/inklinks/engine.ex` | The engine boundary (a behaviour) |
 | `lib/inklinks/catalog.ex` | The Inklinks on offer, from `priv/inklinks/*.json` |
 | `priv/inklinks/` | IR files, one per Inklink |

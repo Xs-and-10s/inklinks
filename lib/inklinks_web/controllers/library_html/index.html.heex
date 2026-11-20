@@ -28,6 +28,7 @@
               <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
               <button>{if item.current, do: "Continue", else: "Read"}</button>
             </form>
+            <a :if={item.finished} href={~p"/readings/#{item.finished}/path"}>Your last path</a>
           <% {:unsupported, reasons} -> %>
             <details>
               <summary>Not playable yet</summary>

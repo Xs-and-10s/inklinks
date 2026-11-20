@@ -20,18 +20,24 @@ the real engine.
 | 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | done, #2 |
 | 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | done, #3 |
 | 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending; Inker insights from the log | done |
-| 5 | `m5-handoff` | The event catalogue in code, with an `origin` on every event; `take_link`; replay regenerates engine events; `events.md`, `engine-calls.md`, `ir3-requests.md` finished; `handoff.md` for the compiler chat | done |
+| 5 | `m5-handoff` | The event catalogue in code, with an `origin` on every event; `take_link`; replay regenerates engine events; `events.md`, `engine-calls.md`, `ir3-requests.md` finished; `handoff.md` for the compiler chat | done, #5 |
+| 6 | `m6-timeline` | A reading's path, drawn top to bottom for phones: `Inklinks.Timeline` (a projection of the log) and `/readings/:id/path`; links from the ending and the library | done |
 
 ## Next
 
 The slice is finished. What comes after it, in the order it unblocks:
 
 1. **The compiler's answers** to `handoff.md` (IR 3, the bridge, one log).
+   The handoff went over on 19 Nov; M6 ran in parallel, touching nothing
+   it depends on.
 2. **The Rust engine behind `Inklinks.Engine`**, as a Rustler NIF, with
    the stub as an oracle.
 3. **v0.6 examples on the real engine**, then a hosted playtest copy.
 4. **Accounts** (`reader_claimed`), and Inker reports as pages over
    `Inklinks.Insights`.
+
+Then, once IR 3 settles what a fork looks like: the Inker's story map
+(`later.md`), which needs the whole story as a graph from the engine.
 
 What is deliberately deferred, with the reasoning, is in `later.md`.
 
