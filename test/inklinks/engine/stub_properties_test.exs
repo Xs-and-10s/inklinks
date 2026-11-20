@@ -32,7 +32,7 @@ defmodule Inklinks.Engine.StubPropertiesTest do
         id = pick(attempt, view)
         offered? = Enum.any?(view.links, &(&1.id == id))
 
-        case Stub.take(story, w, id) do
+        case Stub.take_link(story, w, id) do
           {:ok, next} ->
             assert offered?, "took #{inspect(id)}, which #{view.nib} does not offer"
             next
@@ -94,7 +94,7 @@ defmodule Inklinks.Engine.StubPropertiesTest do
             {:halt, {views, w}}
 
           %{links: links} ->
-            {:ok, w} = Stub.take(story, w, Enum.at(links, rem(i, length(links))).id)
+            {:ok, w} = Stub.take_link(story, w, Enum.at(links, rem(i, length(links))).id)
             {:cont, {views ++ [Stub.view(story, w)], w}}
         end
       end)

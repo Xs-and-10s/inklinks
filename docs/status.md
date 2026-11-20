@@ -20,7 +20,7 @@ the real engine.
 | 2 | `m2-reader` | The stub engine on Ex 3: Nibs, Links, `[if]` and `~ when`, emphasis, speech and beats; reading events | done, #2 |
 | 3 | `m3-inquests` | The Littlejon fixture; flow D; forks fetched on flip; View Transitions and the live region | done, #3 |
 | 4 | `m4-ratings` | Ratings after a finale; abandoned readings inferred; returning for another ending; Inker insights from the log | done |
-| 5 | `m5-handoff` | The event catalogue in code, with an `actor` on every event; `events.md`, `engine-calls.md`, `ir3-requests.md` finished; `handoff.md` for the compiler chat | done |
+| 5 | `m5-handoff` | The event catalogue in code, with an `origin` on every event; `take_link`; replay regenerates engine events; `events.md`, `engine-calls.md`, `ir3-requests.md` finished; `handoff.md` for the compiler chat | done |
 
 ## Next
 
@@ -32,6 +32,8 @@ The slice is finished. What comes after it, in the order it unblocks:
 3. **v0.6 examples on the real engine**, then a hosted playtest copy.
 4. **Accounts** (`reader_claimed`), and Inker reports as pages over
    `Inklinks.Insights`.
+
+What is deliberately deferred, with the reasoning, is in `later.md`.
 
 ## Decisions (18 Nov 2026)
 

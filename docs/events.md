@@ -8,7 +8,7 @@ log. The Rust interpreter's own event log should be able to hold the same
 events, under the same rules, so the two can be one log.
 
 Code: `Inklinks.Events` (the store), `Inklinks.Events.Catalog` (every
-type, its actor and its keys), `Inklinks.Reading` (what a reading records),
+type, its origin and its keys), `Inklinks.Reading` (what a reading records),
 `Inklinks.Insights` (what an Inker reads back).
 
 ## 1. The model
@@ -36,10 +36,10 @@ Every event has these fields. `data` is the only part that varies by type.
 | `stream_version` | integer ≥ 1 | 1, 2, 3… within the stream, no gaps |
 | `type` | snake_case text | What happened (§4) |
 | `type_version` | integer ≥ 1 | The shape of `data` for this type. All are 1 today; a change to a type's keys is a new version, read by an upcaster |
-| `actor` | `linker` \| `engine` \| `platform` | Who caused it (§4) |
+| `origin` | `linker` \| `engine` \| `platform` | Where it came from (§4) |
 | `data` | JSON object | The event's facts. Keys are strings |
 | `reader_id` | UUIDv7 | Who, copied from the stream for queries |
-| `inklink_id` | text | Which Inklink, copied from the stream |
+| `inklink_id` | text | Which Inklink, copied from the stream. **Opaque: never the title.** Today the IR file's name; once Inklinks are published, a UUIDv7 assigned once and never changed. Title, kind, Inker, series and adaptations are attributes and relations of the Inklink, so a rename or a story and a game with the same title change nothing here |
 | `occurred_at` | timestamptz | When it happened, by the server's clock. An inferred event uses the inferred moment |
 | `recorded_at` | timestamptz | When it was written |
 
@@ -54,7 +54,7 @@ As JSON (the first event of the example in §7):
   "version": 1,
   "type": "reading_started",
   "type_version": 1,
-  "actor": "linker",
+  "origin": "linker",
   "reader_id": "01a1f592-f0d7-7c25-8112-31cf07363d0e",
   "inklink_id": "ex4-littlejon-thornbury",
   "occurred_at": "2026-11-19T20:50:10.331050Z",
@@ -86,22 +86,29 @@ should keep them:
 4. **Total order.** `position` orders everything; `stream_version` orders a
    stream. Projections catch up by position.
 5. **Every event is in the catalogue** (§4), with exactly its keys, and
-   stamped with its actor. Anything else is a bug, refused before writing.
+   stamped with its origin. Anything else is a bug, refused before writing.
 
 ## 4. The catalogue
 
-Who causes an event:
+Where an event comes from. The test is **could you delete it and get it
+back by replaying?**
 
-- **`linker`**: the Linker's own action: a choice, an answer, a look.
-- **`engine`**: what the engine computed from it: the Nib shown, an ending,
-  the end of the reading.
-- **`platform`**: what the platform decided or inferred: asking for a
-  rating, turning an Inquest down, a fork declined, a reading abandoned.
+- **`linker`**: the Linker's own action: a choice, an answer, a look. No:
+  only the Linker knows what they meant to do.
+- **`engine`**: what the engine computed from the story, the seed and the
+  choices so far: the Nib shown, an ending, the end of the reading. Yes,
+  exactly; a property test checks it (§6).
+- **`platform`**: what the platform decided by its own rules, or inferred
+  from the clock: asking for a rating, turning an Inquest down, a fork
+  declined, a reading abandoned. No: it changes if the rules change.
+
+The column is `origin`, not `actor`: in cohort play, "actor" would read as
+the character who acted.
 
 The table below is generated from `Inklinks.Events.Catalog.markdown/0`; a
 test fails if they differ.
 
-| Type | Actor | `data` (`?`: optional) | When |
+| Type | Origin | `data` (`?`: optional) | When |
 |---|---|---|---|
 | `reading_started` | linker | `seed`, `ir`, `ir_sha256`, `engine`, `inquests` | A Linker begins a reading. |
 | `returned_for_another_ending` | platform | `readings_finished`, `endings_seen` | The reading is by a Linker who has finished this Inklink before. |
@@ -173,7 +180,7 @@ kinds of event, and nothing else changes it:
 | Event | Replay |
 |---|---|
 | `reading_started` | `start(story, seed)` |
-| `link_taken` | `take(story, state, link)` |
+| `link_taken` | `take_link(story, state, link)` |
 | `fork_taken` | `take_fork(story, state_at(back_to) or state, fork)` |
 
 `state_at(v)` is the state when the `nib_shown` at version `v` was written:
@@ -205,33 +212,37 @@ Properties (StreamData) and scenarios that hold today:
   `nib_shown`, and no fork ever appears in a `nib_shown`'s `links`.
 - A reading rebuilt from its log is where the live one is: the same view,
   version, Inquest state, rating state and abandonment.
+- Replaying a reading with the engine alone, from its seed and its
+  `link_taken` and `fork_taken` events (going back included), writes
+  exactly its `engine` events, in order. This is the determinism check to
+  run against the Rust engine.
 
 ## 7. Example
 
 A Linker reads the Littlejon fixture: asks an Inquest at ch2, opens the
 group (two forks), frees the widow, goes on to ch4, and rates it. The
-real log, trimmed to `version`, `type`, `actor`, `occurred_at` and
+real log, trimmed to `version`, `type`, `origin`, `occurred_at` and
 `data`, one event per line:
 
 ```json
-{"version": 1, "type": "reading_started", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.331050Z", "data": {"engine": "Inklinks.Engine.Stub", "inquests": 3, "ir": "3", "ir_sha256": "e1a61d7b38d5…", "seed": 42}}
-{"version": 2, "type": "nib_shown", "actor": "engine", "occurred_at": "2026-11-19T20:50:10.331050Z", "data": {"links": ["obey_at_thornbury", "watch_what_unfolds"], "nib": "ch2", "passed": [], "visit": 1}}
-{"version": 3, "type": "inquest_opened", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.350234Z", "data": {"nib": "ch2", "remaining": 3}}
-{"version": 4, "type": "inquest_submitted", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.354400Z", "data": {"nib": "ch2", "text": "Don't let her drown."}}
-{"version": 5, "type": "inquest_mode_entered", "actor": "platform", "occurred_at": "2026-11-19T20:50:10.354400Z", "data": {"nib": "ch2", "remaining": 3}}
-{"version": 6, "type": "fork_looked", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.358334Z", "data": {"fork": "free_the_widow", "label": "Free her, unseen", "link": "obey_at_thornbury", "nib": "ch2"}}
-{"version": 7, "type": "fork_looked", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.358334Z", "data": {"fork": "speak_in_her_ear", "label": "Speak in Sister Agathe’s ear", "link": "obey_at_thornbury", "nib": "ch2"}}
-{"version": 8, "type": "fork_taken", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.362246Z", "data": {"fork": "free_the_widow", "label": "Free her, unseen", "link": "obey_at_thornbury", "nib": "ch2"}}
-{"version": 9, "type": "fork_declined", "actor": "platform", "occurred_at": "2026-11-19T20:50:10.362246Z", "data": {"by": "took_another_fork", "fork": "speak_in_her_ear", "link": "obey_at_thornbury", "nib": "ch2"}}
-{"version": 10, "type": "nib_shown", "actor": "engine", "occurred_at": "2026-11-19T20:50:10.362246Z", "data": {"links": ["on_to_the_fens"], "nib": "ch2_alt", "passed": [], "visit": 1}}
-{"version": 11, "type": "link_taken", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.366350Z", "data": {"label": "Go on to the fens", "link": "on_to_the_fens", "nib": "ch2_alt"}}
-{"version": 12, "type": "nib_shown", "actor": "engine", "occurred_at": "2026-11-19T20:50:10.366350Z", "data": {"links": ["keep_the_book"], "nib": "ch3", "passed": [], "visit": 1}}
-{"version": 13, "type": "link_taken", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"label": "Promise her you will burn it", "link": "keep_the_book", "nib": "ch3"}}
-{"version": 14, "type": "nib_shown", "actor": "engine", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"links": [], "nib": "ch4", "passed": [], "visit": 1}}
-{"version": 15, "type": "ending_reached", "actor": "engine", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"ending": "ch4"}}
-{"version": 16, "type": "rating_asked", "actor": "platform", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"ending": "ch4", "path": true}}
-{"version": 17, "type": "reading_finished", "actor": "engine", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"ending": "ch4"}}
-{"version": 18, "type": "rating_given", "actor": "linker", "occurred_at": "2026-11-19T20:50:10.378633Z", "data": {"ending": "ch4", "ending_score": 5, "inklink_score": 4, "path_score": 5}}
+{"version": 1, "type": "reading_started", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.331050Z", "data": {"engine": "Inklinks.Engine.Stub", "inquests": 3, "ir": "3", "ir_sha256": "e1a61d7b38d5…", "seed": 42}}
+{"version": 2, "type": "nib_shown", "origin": "engine", "occurred_at": "2026-11-19T20:50:10.331050Z", "data": {"links": ["obey_at_thornbury", "watch_what_unfolds"], "nib": "ch2", "passed": [], "visit": 1}}
+{"version": 3, "type": "inquest_opened", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.350234Z", "data": {"nib": "ch2", "remaining": 3}}
+{"version": 4, "type": "inquest_submitted", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.354400Z", "data": {"nib": "ch2", "text": "Don't let her drown."}}
+{"version": 5, "type": "inquest_mode_entered", "origin": "platform", "occurred_at": "2026-11-19T20:50:10.354400Z", "data": {"nib": "ch2", "remaining": 3}}
+{"version": 6, "type": "fork_looked", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.358334Z", "data": {"fork": "free_the_widow", "label": "Free her, unseen", "link": "obey_at_thornbury", "nib": "ch2"}}
+{"version": 7, "type": "fork_looked", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.358334Z", "data": {"fork": "speak_in_her_ear", "label": "Speak in Sister Agathe’s ear", "link": "obey_at_thornbury", "nib": "ch2"}}
+{"version": 8, "type": "fork_taken", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.362246Z", "data": {"fork": "free_the_widow", "label": "Free her, unseen", "link": "obey_at_thornbury", "nib": "ch2"}}
+{"version": 9, "type": "fork_declined", "origin": "platform", "occurred_at": "2026-11-19T20:50:10.362246Z", "data": {"by": "took_another_fork", "fork": "speak_in_her_ear", "link": "obey_at_thornbury", "nib": "ch2"}}
+{"version": 10, "type": "nib_shown", "origin": "engine", "occurred_at": "2026-11-19T20:50:10.362246Z", "data": {"links": ["on_to_the_fens"], "nib": "ch2_alt", "passed": [], "visit": 1}}
+{"version": 11, "type": "link_taken", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.366350Z", "data": {"label": "Go on to the fens", "link": "on_to_the_fens", "nib": "ch2_alt"}}
+{"version": 12, "type": "nib_shown", "origin": "engine", "occurred_at": "2026-11-19T20:50:10.366350Z", "data": {"links": ["keep_the_book"], "nib": "ch3", "passed": [], "visit": 1}}
+{"version": 13, "type": "link_taken", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"label": "Promise her you will burn it", "link": "keep_the_book", "nib": "ch3"}}
+{"version": 14, "type": "nib_shown", "origin": "engine", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"links": [], "nib": "ch4", "passed": [], "visit": 1}}
+{"version": 15, "type": "ending_reached", "origin": "engine", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"ending": "ch4"}}
+{"version": 16, "type": "rating_asked", "origin": "platform", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"ending": "ch4", "path": true}}
+{"version": 17, "type": "reading_finished", "origin": "engine", "occurred_at": "2026-11-19T20:50:10.374957Z", "data": {"ending": "ch4"}}
+{"version": 18, "type": "rating_given", "origin": "linker", "occurred_at": "2026-11-19T20:50:10.378633Z", "data": {"ending": "ch4", "ending_score": 5, "inklink_score": 4, "path_score": 5}}
 ```
 
 ## 8. Reading the log
@@ -254,11 +265,11 @@ the log holds enough.
 
 What the Rust side needs to decide or build so the two logs are one:
 
-1. **Use this envelope** (§2) and these guarantees (§3), with `actor`
+1. **Use this envelope** (§2) and these guarantees (§3), with `origin`
    on every event. The engine's own events (below) are `engine`.
 2. **The interpreter's events go in the same stream.** It already logs
    snapshots, checkpoints, rewinds, echoes and turn ends (run.md, "Time").
-   Those become events in the reading's stream, `actor: engine`, alongside
+   Those become events in the reading's stream, `origin: engine`, alongside
    these: `checkpoint_taken`, `rewound` (with `to`), `turn_ended`, `died`,
    and in cohort play `move_locked`, `claim_settled`, `clashed`. They are
    not in this catalogue because the stub never produces them; the
@@ -279,3 +290,21 @@ What the Rust side needs to decide or build so the two logs are one:
    Linkers. Each Linker keeps their own reading stream for what they did,
    and the shared world gets its own stream (`stream_type: world`) for what
    the engine resolved for everyone. That needs deciding with the bridge.
+   **Who holds a role** (the Storyteller, say) is the platform's to record,
+   in the cohort's stream (`storyteller_chosen {user, by: volunteer | vote
+   | random | inker}`); the IR says what the role may see and do, and never
+   names who holds it.
+8. **Open question: state changes.** Should the log record what a step
+   changed (a character's trust, a resource)? Recommendation: not one event
+   per effect (redundant with replay, many per game turn, and tied to
+   variable names that change between revisions), but a compact diff on
+   the step's own engine event, only for values the Inker marks as worth
+   tracking:
+
+   ```json
+   {"type": "nib_shown", "origin": "engine", "data": {"nib": "ch3", "changes": {"leo.trust": [2, 3]}, "...": "…"}}
+   ```
+
+   Anything else an Inker asks about state is computed by replaying into
+   a projection. How the Inker marks a value (`~ track`?) is Inkjot's to
+   decide.

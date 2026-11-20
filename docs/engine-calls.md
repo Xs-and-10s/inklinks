@@ -22,7 +22,7 @@ milestone 5, through the telemetry events.
 | `meta/1` | story | title, kind, mode, Inquest budget |
 | `start/2` | story, seed | state |
 | `view/2` | story, state | the Nib's Ink by passage, its offered Links, ending, done |
-| `take/3` | story, state, Link id | state, or `:not_offered` |
+| `take_link/3` | story, state, Link id | state, or `:not_offered` |
 | `asked_from/2` | story, Nib | passages whose forks may be asked for from this Nib (static, from `inquest.from`) |
 | `forks?/3` | story, state, Nib asked from | yes or no: may a fork be taken here, asking from that Nib? |
 | `forks/4` | story, state, offered Link id, Nib asked from | the forks that stand in for it, in the Inker's order (ids and labels) |
@@ -36,17 +36,17 @@ earlier visit, only the forks whose `from` names the current Nib.
 
 A reading's state is not kept between requests. Each request rebuilds it
 from the log (`Inklinks.Reading.load/2`): `start` with the recorded seed,
-then `take` for each `link_taken`.
+then `take_link` for each `link_taken`.
 
 | Request | Engine calls | |
 |---|---|---|
 | First listing of an Inklink, or after its file changes | `load` ×1 | cached in ETS by file, mtime and size |
 | Start a reading | `start` ×1, `view` ×1, `meta` ×1 | |
-| Open a reading (`GET /readings/:id`), *n* Links in | `start` ×1, `take` ×*n*, `view` ×1 | the rebuild |
-| Take a Link, *n* Links in | `start` ×1, `take` ×*n* (rebuild), then `take` ×1 and `view` ×3 | the rebuild runs in `authorize/2` before the event |
+| Open a reading (`GET /readings/:id`), *n* Links in | `start` ×1, `take_link` ×*n*, `view` ×1 | the rebuild |
+| Take a Link, *n* Links in | `start` ×1, `take_link` ×*n* (rebuild), then `take_link` ×1 and `view` ×3 | the rebuild runs in `authorize/2` before the event |
 
 Inquests add, on top of the rebuild every request pays (`start` ×1, then
-`take` or `take_fork` ×*n*). Counted on Littlejon (milestone 5), Inquest
+`take_link` or `take_fork` ×*n*). Counted on Littlejon (milestone 5), Inquest
 asked at ch2:
 
 | Step | Engine calls |
@@ -56,8 +56,8 @@ asked at ch2:
 | Answer or skip the box | `asked_from` ×1, `forks?` ×1 per place (the Nib, and each earlier visit), `view` ×1 |
 | Open a Link (hover, focus or first tap), a group of two forks | `asked_from` ×1, `forks` ×1, `view` ×2: **one Link's forks cross, for one look** |
 | Take a fork | `forks` ×1, `take_fork` ×1 (from the earlier visit's state when going back), `view` ×3 |
-| Take a Link | `take` ×1, `view` ×2 |
-| Rebuild after a fork and a Link | `start` ×1, `take_fork` ×1, `take` ×1 |
+| Take a Link | `take_link` ×1, `view` ×2 |
+| Rebuild after a fork and a Link | `start` ×1, `take_fork` ×1, `take_link` ×1 |
 
 The `view`s are the platform reading the state it already holds (the Nib's
 Links to check a choice, the Links to list): in the stub they cost 2 µs,
@@ -76,7 +76,7 @@ sidecar), or a `replay(story, seed, actions, upto: version)` call that
 rebuilds an earlier state in one trip. This is the strongest argument yet
 for a replay or snapshot call.
 
-So **one Link costs *n* + 1 `take`s**, and a whole reading of *n* Links
+So **one Link costs *n* + 1 `take_link`s**, and a whole reading of *n* Links
 costs about *n*²/2. For a story that is nothing; for a game with thousands
 of moves it is the first thing to fix.
 
@@ -86,7 +86,7 @@ of moves it is the first thing to fix.
 |---|---|
 | `load` (82 KB of IR: JSON decode and checks) | 3.3 ms, once |
 | `start` | 0.15 ms (5 ms on the very first call: code loading) |
-| `take` | 0.12–0.19 ms |
+| `take_link` | 0.12–0.19 ms |
 | `view` | 2 µs (the stub renders on arrival and keeps the view) |
 | Rebuilding a finished reading (9 Links), engine only | ≈ 1.1 ms |
 | The same, with the event query, in dev with debug logging | ≈ 12 ms |
@@ -109,7 +109,7 @@ impl Story {
     pub fn load(ir_json: &[u8]) -> Result<Story, Vec<Unsupported>>;
     pub fn meta(&self) -> Meta;                       // title, kind, mode, inquests
     pub fn start(&self, seed: u64) -> State;
-    pub fn take(&self, s: &State, link: &str) -> Result<State, NotOffered>;
+    pub fn take_link(&self, s: &State, link: &str) -> Result<State, NotOffered>;
     pub fn asked_from(&self, nib: &str) -> &[String]; // static, from inquest.from
     pub fn forks_any(&self, s: &State, from: &str) -> bool;
     pub fn forks(&self, s: &State, link: &str, from: &str) -> Vec<Fork>;
@@ -129,7 +129,10 @@ impl State {
 pub enum Action { Link(String), Fork { fork: String, back_to: Option<usize> } }
 ```
 
-- **Immutable states.** `take` returns a new `State` and leaves the old one
+- **`take_link`, not `take`.** `take` is an Inkjot verb (an act like
+  `take book`), so the call that takes a Link says so, and pairs with
+  `take_fork` as `link_taken` pairs with `fork_taken`.
+- **Immutable states.** `take_link` returns a new `State` and leaves the old one
   usable: going back takes a fork from an earlier state, and a stale
   request must not see a later one. Structural sharing (`im`, or `Arc`
   around the big parts) keeps that cheap.
@@ -149,8 +152,8 @@ pub enum Action { Link(String), Fork { fork: String, back_to: Option<usize> } }
 **Recommendation: Rustler NIF.** The numbers decide it:
 
 - Every call but `load` is microseconds (the stub, in Elixir, is 0.1–0.2 ms
-  per `take` and µs for the rest; Rust will be faster). That is far under
-  the 1 ms a NIF may hold a normal scheduler, so `take`, `view`, `forks?`,
+  per `take_link` and µs for the rest; Rust will be faster). That is far under
+  the 1 ms a NIF may hold a normal scheduler, so `take_link`, `view`, `forks?`,
   `forks` and `take_fork` run as plain NIFs.
 - `load` (parse and check a whole IR file, 3 ms for Ex 3), and `replay` of
   a long reading, run on **dirty CPU schedulers**
@@ -192,14 +195,14 @@ main call, and the platform's seam does not change.
 - **Calls are small and frequent, not large and rare.** A rebuild is
   1 + *n* calls in a row with the same story handle. Over a NIF that is
   cheap (each call is microseconds, well under the 1 ms a NIF may hold a
-  scheduler, so no dirty scheduler is needed for `take` and `view`; `load`
+  scheduler, so no dirty scheduler is needed for `take_link` and `view`; `load`
   parses a whole IR file and should run on a dirty CPU scheduler). Over a
   sidecar it is 1 + *n* round trips per request, which argues for one of:
   - a **`replay(story, seed, [link ids])`** call that rebuilds in one trip;
   - **`snapshot(state)` / `restore(story, bytes)`**, so the platform can
     store a snapshot beside the log and replay only what came after it;
   - keeping each open reading's state **in a process** (a GenServer per
-    reading, or the sidecar holding it), so a Link is one `take`.
+    reading, or the sidecar holding it), so a Link is one `take_link`.
   Any of these also fixes the *n*² above.
 - **Handles must be cheap to pass.** The story is passed on every call. As
   a NIF resource that is a pointer; across a sidecar it must be an id the

@@ -37,7 +37,7 @@ Postgres is expected on `localhost` as `postgres`/`postgres`
 | Path | What |
 |---|---|
 | `lib/inklinks/events.ex` | The event log: append to a stream, read it back |
-| `lib/inklinks/events/catalog.ex` | Every event type, its actor and its keys |
+| `lib/inklinks/events/catalog.ex` | Every event type, its origin and its keys |
 | `lib/inklinks/engine.ex` | The engine boundary (a behaviour) |
 | `lib/inklinks/catalog.ex` | The Inklinks on offer, from `priv/inklinks/*.json` |
 | `priv/inklinks/` | IR files, one per Inklink |
@@ -47,6 +47,7 @@ Postgres is expected on `localhost` as `postgres`/`postgres`
 | `docs/engine-calls.md` | How the platform calls the engine: settles the bridge |
 | `docs/ir3-requests.md` | Fields the platform needs from IR version 3 |
 | `docs/compiler-followups.md` | Issues to take back to the compiler |
+| `docs/later.md` | What is deferred, and why |
 
 ## License
 

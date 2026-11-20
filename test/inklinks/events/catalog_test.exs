@@ -22,9 +22,9 @@ defmodule Inklinks.Events.CatalogTest do
       assert written == MapSet.new(Catalog.all(), & &1.type)
     end
 
-    test "gives every type one actor and no key twice" do
+    test "gives every type one origin and no key twice" do
       for e <- Catalog.all() do
-        assert e.actor in [:linker, :engine, :platform]
+        assert e.origin in [:linker, :engine, :platform]
         keys = e.required ++ e.optional
         assert keys == Enum.uniq(keys), e.type
       end
@@ -32,9 +32,9 @@ defmodule Inklinks.Events.CatalogTest do
   end
 
   describe "stamp!/1" do
-    test "stamps the actor of a well-formed event" do
+    test "stamps the origin of a well-formed event" do
       event = %{type: "link_taken", data: %{"link" => "a", "nib" => "n", "label" => "A"}}
-      assert Catalog.stamp!(event).actor == "linker"
+      assert Catalog.stamp!(event).origin == "linker"
     end
 
     test "allows optional keys and refuses unknown types, missing keys and extra keys" do

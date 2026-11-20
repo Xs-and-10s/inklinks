@@ -9,7 +9,7 @@ defmodule Inklinks.InquestTest do
   use Inklinks.DataCase, async: true
   use ExUnitProperties
 
-  alias Inklinks.{Events, Inquest, Reading}
+  alias Inklinks.{Engine, Events, Inquest, Reading, Stories}
 
   @fixture "ex4-littlejon-thornbury"
   @free %{id: "free_the_widow", label: ["Free her, unseen"]}
@@ -282,6 +282,10 @@ defmodule Inklinks.InquestTest do
                {final.spent, final.inquest, final.looked}
 
       assert Reading.view(rebuilt) == Reading.view(final)
+
+      # …and replay, from nothing but the seed and the choices, writes exactly
+      # the engine's events: what makes them `engine` and not `platform`.
+      assert regenerated(events) == for(%{origin: "engine"} = e <- events, do: {e.type, e.data})
     end
   end
 
@@ -345,6 +349,68 @@ defmodule Inklinks.InquestTest do
     {:ok, reading, _} = Inquest.look(reading, "obey_at_thornbury")
     {:ok, reading} = Inquest.take(reading, fork)
     reading
+  end
+
+  # Rebuilds a reading's engine events with the engine alone: `start` with
+  # the recorded seed, then each `link_taken` and `fork_taken` (from the
+  # earlier visit's state when it went back), showing each state reached.
+  # Independent of `Reading`, so it checks the platform's replay too.
+  defp regenerated([%{type: "reading_started"} = started | _] = events) do
+    {:ok, %{story: story}} = Stories.fetch(started.inklink_id)
+    {:ok, state} = Engine.call(:start, [story, started.data["seed"]])
+
+    logged = for %{type: "nib_shown"} = e <- events, do: e.stream_version
+
+    acc =
+      show(
+        %{story: story, state: nil, logged: logged, states: %{}, nibs: [], ending: nil, out: []},
+        state
+      )
+
+    events
+    |> Enum.reduce(acc, fn
+      %{type: "link_taken", data: %{"link" => link}}, acc ->
+        {:ok, state} = Engine.call(:take_link, [story, acc.state, link])
+        show(acc, state)
+
+      %{type: "fork_taken", data: %{"fork" => fork} = data}, acc ->
+        from = if back = data["back_to"], do: Map.fetch!(acc.states, back), else: acc.state
+        {:ok, state} = Engine.call(:take_fork, [story, from, fork])
+        show(acc, state)
+
+      _, acc ->
+        acc
+    end)
+    |> Map.fetch!(:out)
+    |> Enum.reverse()
+  end
+
+  defp show(acc, state) do
+    view = Engine.call(:view, [acc.story, state])
+    [version | logged] = acc.logged
+    ending = view.ending || acc.ending
+
+    shown = [
+      {"nib_shown",
+       %{
+         "nib" => view.nib,
+         "passed" => view.passed,
+         "links" => Enum.map(view.links, & &1.id),
+         "visit" => Enum.count(acc.nibs, &(&1 == view.nib)) + 1
+       }},
+      view.ending && {"ending_reached", %{"ending" => view.ending}},
+      view.done && {"reading_finished", %{"ending" => ending}}
+    ]
+
+    %{
+      acc
+      | state: state,
+        logged: logged,
+        states: Map.put(acc.states, version, state),
+        nibs: [view.nib | acc.nibs],
+        ending: ending,
+        out: Enum.reverse(Enum.filter(shown, & &1), acc.out)
+    }
   end
 
   defp recent(reading, n), do: reading.id |> Events.read_stream() |> Enum.take(-n)

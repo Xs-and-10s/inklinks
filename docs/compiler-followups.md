@@ -38,12 +38,20 @@ asterisks, so a runtime has to parse Inkjot to render them. See
 rules (underscores literal, an unmatched `*` literal, `\*` an asterisk,
 never across a paragraph).
 
-## 3. `shown_as` in speech
+## 3. `shown_as`: show what the reader knows (decided 19 Nov)
 
 Ex 3 declares `npc widow: "Marge" ~ shown as "the Surviving Authority"`.
-The interpreter's speech lines use the label, so she speaks as "Marge"; the
-`shown_as` text is never shown. Which should a speech line use: the label,
-`shown_as`, or `shown_as` until something reveals the name?
+The interpreter's speech lines use the label, so she speaks as "Marge"
+and `shown_as` is never shown, which gives away what `shown_as` hides.
+
+Proposed rule, the same in speech and inline: **render what the reader
+knows.**
+
+- `@marge` (speech) and `{marge}` (inline) render `shown_as` until a
+  `reveal marge` effect, then the name.
+- `{marge.name}` and `{marge.shown_as}` render one or the other, always,
+  for when the Inker wants that.
+- Whether she has been revealed is state, so replay reproduces it.
 
 **Meanwhile:** the stub matches the interpreter and uses the label.
 
@@ -96,7 +104,10 @@ For the bridge, in order:
 - **`replay(story, seed, actions, upto)`**, returning one state per Nib
   shown: the platform rebuilds a reading on every request, and going back
   needs earlier states.
-- **Immutable states** (`take` returns a new one and the old stays usable).
+- **Immutable states** (`take_link` returns a new one and the old stays
+  usable).
+- **`take_link`, not `take`**: `take` is an Inkjot verb, and the pair
+  `take_link` / `take_fork` matches `link_taken` / `fork_taken`.
 - **A step limit**: a `next:` cycle or runaway loop returns an error, never
   hangs a scheduler.
 - **Determinism across versions**: the same IR, seed and actions give the
@@ -106,12 +117,37 @@ For the bridge, in order:
 
 The recommendation is a Rustler NIF (calls are microseconds; `load` and
 `replay` on dirty schedulers; states as resources), with the stub kept as
-an oracle in a property test against the Rust engine.
+an oracle in a property test against the Rust engine. The platform already
+has the test to point at it: replaying a reading with the engine alone
+must write exactly the reading's `engine` events.
 
 ## 9. Engine events in the reading's log (from events.md)
 
 The interpreter's own events (checkpoints, rewinds, turn ends, deaths, and
 in cohort play locks, claims and clashes) should join the reading's stream
-with `actor: engine`, under the envelope and guarantees in events.md §2–3.
+with `origin: engine`, under the envelope and guarantees in events.md §2–3.
+Whether a step records the state it changed is an open question there
+(§9.8; recommended: a diff on the step's event, for tracked values only).
 Adding one means adding it to `Inklinks.Events.Catalog` with its keys.
+
+## 10. `aka`: a policy declared once, a few forms at the call site (decided 19 Nov)
+
+Today `{leo.aka}` renders one alias: the interpreter shuffles with the
+seeded RNG on arrival, and the stub copies it. Proposed, so a list can be
+shown whole or one item at a time without an expression language in the
+prose:
+
+- **The policy is declared once, with the data:**
+  `~ aka "Leo", "Leo Leo Beans" ~ pick cycle`. Policies: `shuffle` (today's
+  behaviour, the default), `cycle`, `random` (every time), `first`.
+- **The call site has a few named forms:** `{leo.aka}` picks one by that
+  policy; `{all leo.aka}` renders the whole list, through the list
+  rendering `the_list` already has (items struck, highlighted, added).
+- **Redacted items, too** (for a spy story-game): rendered as a bar, and
+  the text never reaches the page, like a hidden fork.
+- **No filters** (`where starts_with …`) until an example needs one.
+- **Replay keeps working:** every random pick uses the seeded RNG, and a
+  cycle's position lives in state.
+
+**Meanwhile:** the stub keeps today's `shuffle`.
 

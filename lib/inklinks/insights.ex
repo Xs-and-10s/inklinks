@@ -26,7 +26,7 @@ defmodule Inklinks.Insights do
 
   @doc """
   Time per Nib: from `nib_shown` to the Linker's next action (the next event
-  whose actor is `linker`), as a median in seconds, over every showing that
+  whose origin is `linker`), as a median in seconds, over every showing that
   had one. Engine and platform events written in the same moment do not
   count.
   """
@@ -43,7 +43,7 @@ defmodule Inklinks.Insights do
         SELECT type, data,
                extract(epoch FROM lead(occurred_at) OVER w - occurred_at)::float AS secs
         FROM events
-        WHERE inklink_id = $1 AND (type = 'nib_shown' OR actor = 'linker')
+        WHERE inklink_id = $1 AND (type = 'nib_shown' OR origin = 'linker')
         WINDOW w AS (PARTITION BY stream_id ORDER BY stream_version)
       ) t
       WHERE type = 'nib_shown' AND secs IS NOT NULL

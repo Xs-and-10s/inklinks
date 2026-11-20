@@ -9,15 +9,25 @@ uses that IR 2 lacks is listed here.
 
 | # | Request | Needed for | Size |
 |---|---|---|---|
-| 1 | `inquest` field on forks: `stands_in_for`, `by`, `from`; retire `kind: "inquest"` | Inquests at all | new field, two checks |
+| 0 | Consumers ignore fields they don't know | adding to IR 3 without an IR 4 | a rule, written down |
+| 1 | `inquest` field on forks: `stands_in_for`, `from`, `credit`, `pending`; retire `kind: "inquest"` | Inquests at all | new field, two checks |
 | 2 | Link ids that survive revisions | every Inker report, every event naming a Link | compiler change to `id` |
 | 3 | Styled runs instead of asterisks, labels as parts | rendering without parsing Inkjot | new part kind |
-| 4 | `state` declarations | Littlejon (v0.6) | new `declare` kind |
+| 4 | `state` declarations, with a `type` | Littlejon (v0.6) | new `declare` kind |
 | 5 | Passage titles (optional) | the earlier-visit fallback, Inker reports | optional field |
 
 Ordered by what blocks most. 1 and 2 are the ones the platform cannot
 work around in a real Inklink; 3 and 4 the stub works around today; 5 is
-polish.
+polish. 0 is what lets the rest grow without waiting for IR 4.
+
+## 0. Unknown fields are ignored
+
+State it in the IR spec: a consumer ignores an object field it does not
+know, and a producer never changes the meaning of an existing field
+without a new IR version. Then a new optional field (a MonkeyPaw `brief`,
+a passage `title`, a `track` mark) is an addition, not a version, and the
+platform and the compiler can move at their own pace. The platform's stub
+already ignores unknown fields.
 
 ## 1. Inquests: a fork is a Link with an `inquest` field
 
@@ -28,7 +38,7 @@ polish.
   "label": "Free her, unseen",
   "target": "ch2_alt",
   "kind": "go",
-  "inquest": { "stands_in_for": "obey_at_thornbury", "by": "inker", "from": ["ch3"] },
+  "inquest": { "stands_in_for": "obey_at_thornbury", "from": ["ch3"], "credit": "inker" },
   "...": "every other Link field, as in IR 2"
 }
 ```
@@ -37,7 +47,8 @@ polish.
 |---|---|
 | `inquest` | Present only on a fork. A Link without it is an offered Link (canon is implicit, as decided 15 Nov) |
 | `inquest.stands_in_for` | The id of the offered Link this fork stands in for, in the same passage. **Always written out**, even when the source leaves it implicit ("the Link just above"): the compiler resolves the default, so a runtime never infers it from position |
-| `inquest.by` | `inker` for a fork the Inker wrote; `monkeypaw` or `storyteller` for one filled in later, with `rejoin` (where it rejoins canon) and the pending-slot fields that `~ inquest by monkeypaw ~ rejoin ch5` needs |
+| `inquest.credit` | Who wrote the fork as it stands: `inker`, `monkeypaw`, `ghostwriter` or `storyteller`. Attribution only: the content is fixed. A MonkeyPaw passage the Inker baked into the source keeps `credit: monkeypaw` |
+| `inquest.pending` | Present only on a fork **not written yet**: a slot filled at runtime. `{"by": "monkeypaw" \| "storyteller" \| "ghostwriter", "rejoin": ["ch5"], "brief": "tragic_turns"}`. `by` names a **role**, never a person: who holds the Storyteller role is the platform's to decide. `brief` is optional (below) |
 | `inquest.from` | Optional. Later passages from which this fork may also be asked for (`~ inquest from ch3`). The fork stays in its own passage, beside the Link it stands in for; `from` only says where else it can be asked for |
 
 **Several forks for one offered Link** are allowed (decided 18 Nov): two or
@@ -45,6 +56,34 @@ more Links with `inquest.stands_in_for` naming the same Link. **Their order
 is the order they are written in the passage**, and the IR keeps it (the
 `body` is already in source order). The platform shows them as one group,
 in that order, opened in the offered Link's place.
+
+**Why `credit` and `pending`, not one `by`.** `by` meant two things:
+who fills a slot at runtime, and who wrote content that is now fixed.
+Baking (an Inker keeps the best MonkeyPaw output and writes it into the
+source) turns the first into the second, so the IR needs both, and a
+fork with `pending` is a slot while one without is written content.
+
+**Slots that grow a subtree.** Today a slot is one fork that rejoins canon.
+An Inker who writes only the canon line and leaves the divergence to
+MonkeyPaw needs more: a slot that may write several passages, with its own
+Links and forks, before it rejoins (or ends). Requested now, as shape only:
+
+- `pending.rejoin` is a list: the passages the subtree may exit to;
+  `"rejoin": []` with `"endings": true` lets it write its own endings. A
+  written ending needs a stable id once generated, so ratings by ending
+  still mean something.
+- `pending.brief` names a **declared brief**, so the constraints live in
+  one place that `inkjot check` validates, not in a one-line expression on
+  the tag:
+
+  ```json
+  { "declare": "brief", "id": "tragic_turns",
+    "passages": [1, 4], "links": [1, 3], "forks_per_link": [0, 2],
+    "tone": {"tragedy": 5, "comedy": 1, "neutral": 2} }
+  ```
+
+  The brief's vocabulary can come later, field by field (rule 0). What IR
+  3 needs is that `brief` exists and names a declaration.
 
 Why a field and not `kind: "inquest"` (reserved in IR 2): being a fork is
 orthogonal to what a Link does. A fork can be a plain move (`go`), or an act
@@ -72,7 +111,8 @@ The budget is IR 2's resource declaration, unchanged:
 The platform turns Inquests on only when that is declared **and** the
 Inklink has at least one fork (opt-in by the Inker, as decided).
 `inkjot check` should refuse a fork in `mode: cohort` (decided: solo only),
-and a fork whose `stands_in_for` names no offered Link in the same passage.
+a fork whose `stands_in_for` names no offered Link in the same passage, and
+a `pending.brief` that names no `brief` declaration.
 
 ### Asking from a later passage
 
@@ -139,8 +179,21 @@ text); the stub lowers them by the v0.6 rules.
 v0.6's `state widow_freed: no` appears as
 
 ```json
-{ "declare": "state", "id": "widow_freed", "value": false }
+{ "declare": "state", "id": "widow_freed", "type": "boolean", "value": false }
 ```
+
+`value` is a JSON value (`false`, not `"false"`), and `type` says what it
+may hold, in the IR's own casing. The type earns its keep where the value
+alone is ambiguous: an integer or a decimal, a state that starts out
+`null`, and enums:
+
+```json
+{ "declare": "state", "id": "mood", "type": "enum", "of": ["calm", "tense"], "value": "calm" }
+```
+
+The compiler already checks types; the type in the IR is for the engine,
+the platform's reports, and anything else that reads the IR without the
+source.
 
 read as a bare name (`{"not": "widow_freed"}`) and set as one
 (`{"do": "set", "target": "widow_freed", "value": true}`). The stub

@@ -1,29 +1,36 @@
 defmodule Inklinks.Events.Catalog do
   @moduledoc """
-  Every event a reading can record: its type, who caused it, and the keys
-  its `data` holds. The one source of truth; docs/events.md carries the
-  same table (`markdown/0`), and a test fails if the two drift apart.
+  Every event a reading can record: its type, where it came from, and the
+  keys its `data` holds. The one source of truth; docs/events.md carries
+  the same table (`markdown/0`), and a test fails if the two drift apart.
 
-  **Actors.** Every event says who caused it:
+  **Origins.** Every event says where it came from:
 
-    * `linker`: a Linker's own action (a choice, an answer, a look);
-    * `engine`: what the engine computed from it (the Nib shown, an ending);
-    * `platform`: what the platform decided or inferred (asking for a
-      rating, turning an Inquest down, a reading abandoned).
+    * `linker`: a Linker's own action (a choice, an answer, a look). Only
+      the Linker knows it; nothing can rebuild it.
+    * `engine`: what the engine computed from the story, the seed and the
+      choices so far (the Nib shown, an ending). Replay rebuilds it
+      exactly, and a test checks that it does.
+    * `platform`: what the platform decided or inferred, by its own rules
+      or the clock (asking for a rating, turning an Inquest down, a
+      reading abandoned). It changes if those rules change.
+
+  (Not `actor`: in cohort play that would read as the character who
+  acted.)
 
   Time per Nib, for one, runs from `nib_shown` to the next `linker` event:
   events the engine or platform write in the same moment are not the
   Linker's time.
 
   `Inklinks.Reading.record/2` checks every event against this catalogue
-  and stamps its actor, so the log can only hold what is listed here.
+  and stamps its origin, so the log can only hold what is listed here.
   """
 
-  @type actor :: :linker | :engine | :platform
+  @type origin :: :linker | :engine | :platform
 
   @type entry :: %{
           type: String.t(),
-          actor: actor(),
+          origin: origin(),
           required: [String.t()],
           optional: [String.t()],
           milestone: 2 | 3 | 4,
@@ -37,7 +44,7 @@ defmodule Inklinks.Events.Catalog do
     # -- reading ---------------------------------------------------------------
     %{
       type: "reading_started",
-      actor: :linker,
+      origin: :linker,
       required: ~w(seed ir ir_sha256 engine inquests),
       optional: [],
       milestone: 2,
@@ -45,7 +52,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "returned_for_another_ending",
-      actor: :platform,
+      origin: :platform,
       required: ~w(readings_finished endings_seen),
       optional: [],
       milestone: 4,
@@ -53,7 +60,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "nib_shown",
-      actor: :engine,
+      origin: :engine,
       required: ~w(nib passed links visit),
       optional: [],
       milestone: 2,
@@ -61,7 +68,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "link_taken",
-      actor: :linker,
+      origin: :linker,
       required: ~w(link nib label),
       optional: [],
       milestone: 2,
@@ -69,7 +76,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "ending_reached",
-      actor: :engine,
+      origin: :engine,
       required: ~w(ending),
       optional: [],
       milestone: 2,
@@ -77,7 +84,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "reading_finished",
-      actor: :engine,
+      origin: :engine,
       required: ~w(ending),
       optional: [],
       milestone: 2,
@@ -86,7 +93,7 @@ defmodule Inklinks.Events.Catalog do
     # -- Inquests ----------------------------------------------------------------
     %{
       type: "inquest_opened",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib remaining),
       optional: [],
       milestone: 3,
@@ -94,7 +101,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "inquest_submitted",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib text),
       optional: [],
       milestone: 3,
@@ -102,7 +109,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "inquest_skipped",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib),
       optional: [],
       milestone: 3,
@@ -110,7 +117,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "inquest_turned_down",
-      actor: :platform,
+      origin: :platform,
       required: ~w(nib reason),
       optional: [],
       milestone: 3,
@@ -118,7 +125,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "inquest_mode_entered",
-      actor: :platform,
+      origin: :platform,
       required: ~w(nib remaining),
       optional: [],
       milestone: 3,
@@ -126,7 +133,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "fork_looked",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib link fork label),
       optional: @where,
       milestone: 3,
@@ -135,7 +142,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "fork_taken",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib link fork label),
       optional: @where,
       milestone: 3,
@@ -143,7 +150,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "fork_declined",
-      actor: :platform,
+      origin: :platform,
       required: ~w(nib link fork by),
       optional: @where,
       milestone: 3,
@@ -152,7 +159,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "wanted_instead_opened",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib link),
       optional: @where,
       milestone: 3,
@@ -160,7 +167,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "wanted_instead_submitted",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib link text),
       optional: @where,
       milestone: 3,
@@ -168,7 +175,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "wanted_instead_skipped",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib link),
       optional: @where,
       milestone: 3,
@@ -176,7 +183,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "inquest_mode_left",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib reason),
       optional: [],
       milestone: 3,
@@ -186,7 +193,7 @@ defmodule Inklinks.Events.Catalog do
     # -- ratings, stopping, returning ------------------------------------------
     %{
       type: "rating_asked",
-      actor: :platform,
+      origin: :platform,
       required: ~w(ending path),
       optional: [],
       milestone: 4,
@@ -194,7 +201,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "change_wished",
-      actor: :linker,
+      origin: :linker,
       required: ~w(nib back_to chose text),
       optional: [],
       milestone: 4,
@@ -202,7 +209,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "nothing_to_change",
-      actor: :linker,
+      origin: :linker,
       required: ~w(ending),
       optional: [],
       milestone: 4,
@@ -210,7 +217,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "rating_given",
-      actor: :linker,
+      origin: :linker,
       required: ~w(ending ending_score inklink_score),
       optional: ~w(path_score),
       milestone: 4,
@@ -218,7 +225,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "rating_dismissed",
-      actor: :linker,
+      origin: :linker,
       required: ~w(ending),
       optional: [],
       milestone: 4,
@@ -226,7 +233,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "reading_abandoned",
-      actor: :platform,
+      origin: :platform,
       required: ~w(nib idle_seconds),
       optional: [],
       milestone: 4,
@@ -234,7 +241,7 @@ defmodule Inklinks.Events.Catalog do
     },
     %{
       type: "reading_resumed",
-      actor: :platform,
+      origin: :platform,
       required: ~w(nib after_seconds),
       optional: [],
       milestone: 4,
@@ -253,7 +260,7 @@ defmodule Inklinks.Events.Catalog do
   def fetch(type), do: Map.get(@by_type, type)
 
   @doc """
-  Checks an event against the catalogue and stamps its actor. Raises on an
+  Checks an event against the catalogue and stamps its origin. Raises on an
   unknown type, a missing key or an unexpected one: that is a bug in the
   platform, never the Linker's doing.
   """
@@ -270,7 +277,7 @@ defmodule Inklinks.Events.Catalog do
             "#{type}: missing #{inspect(missing)}, unexpected #{inspect(extra)}"
     end
 
-    Map.put(event, :actor, Atom.to_string(entry.actor))
+    Map.put(event, :origin, Atom.to_string(entry.origin))
   end
 
   @doc "The catalogue as the Markdown table in docs/events.md."
@@ -281,11 +288,11 @@ defmodule Inklinks.Events.Catalog do
         keys =
           Enum.map(e.required, &"`#{&1}`") ++ Enum.map(e.optional, &"`#{&1}`?")
 
-        "| `#{e.type}` | #{e.actor} | #{Enum.join(keys, ", ")} | #{e.about} |"
+        "| `#{e.type}` | #{e.origin} | #{Enum.join(keys, ", ")} | #{e.about} |"
       end
 
     Enum.join(
-      ["| Type | Actor | `data` (`?`: optional) | When |", "|---|---|---|---|" | rows],
+      ["| Type | Origin | `data` (`?`: optional) | When |", "|---|---|---|---|" | rows],
       "\n"
     )
   end
